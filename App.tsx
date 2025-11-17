@@ -150,8 +150,8 @@ const documentOptions = [
 
 const DocumentSelector: React.FC<{onSelect: (docType: DocumentType) => void}> = ({ onSelect }) => (
     <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Selecione o Tipo de Documento</h2>
-        <p className="text-gray-600 mb-8">Clique em uma das opções abaixo para começar a preencher o formulário correspondente.</p>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">Selecione o Tipo de Documento</h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-8">Clique em uma das opções abaixo para começar a preencher o formulário correspondente.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {documentOptions.map(doc => (
                 <button 
@@ -175,9 +175,9 @@ const Toast: React.FC<{
 }> = ({ message, type, onClose }) => {
   const baseClasses = "fixed top-5 left-1/2 -translate-x-1/2 max-w-sm w-full p-4 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in-down z-50";
   const typeClasses = {
-    success: 'bg-green-100 border border-green-400 text-green-800',
-    info: 'bg-blue-100 border border-blue-400 text-blue-800',
-    error: 'bg-red-100 border border-red-400 text-red-800',
+    success: 'bg-green-100 border border-green-400 text-green-800 dark:bg-green-900/50 dark:border-green-600 dark:text-green-300',
+    info: 'bg-blue-100 border border-blue-400 text-blue-800 dark:bg-blue-900/50 dark:border-blue-600 dark:text-blue-300',
+    error: 'bg-red-100 border border-red-400 text-red-800 dark:bg-red-900/50 dark:border-red-600 dark:text-red-300',
   };
    const Icon = {
     success: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
@@ -189,7 +189,7 @@ const Toast: React.FC<{
     <div className={`${baseClasses} ${typeClasses[type]}`} role="alert">
       <div className="flex-shrink-0">{Icon[type]}</div>
       <div className="flex-grow">{message}</div>
-      <button onClick={onClose} className="ml-auto -mx-1.5 -my-1.5 p-1.5 rounded-lg inline-flex h-8 w-8 hover:bg-white/50">
+      <button onClick={onClose} className="ml-auto -mx-1.5 -my-1.5 p-1.5 rounded-lg inline-flex h-8 w-8 hover:bg-white/50 dark:hover:bg-white/20">
         <span className="sr-only">Dismiss</span>
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
       </button>
@@ -316,7 +316,7 @@ function App() {
         return <OrcamentoForm data={orcamentoData} setData={setOrcamentoData} />;
       case DocumentType.TR_BENS:
       case DocumentType.TR_SERVICOS:
-        return <div className="text-center p-8 bg-gray-100 rounded-lg">Este formulário ainda está em desenvolvimento.</div>;
+        return <div className="text-center p-8 bg-gray-100 rounded-lg dark:bg-gray-700 dark:text-gray-300">Este formulário ainda está em desenvolvimento.</div>;
       default:
         return <DocumentSelector onSelect={setDocType} />;
     }
@@ -330,7 +330,7 @@ function App() {
                 <div className="w-16 h-16 border-4 border-white border-t-cbmpa-red rounded-full animate-spin"></div>
             </div>
         )}
-      <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
+      <div className="max-w-6xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden">
         <header className="bg-gradient-to-r from-cbmpa-red to-cbmpa-purple text-white p-6 sm:p-8 text-center relative">
           <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-shadow">🔥 GERADOR DE DOCUMENTOS CBMPA 🔥</h1>
           <p className="text-sm sm:text-base opacity-90">Sistema de Elaboração de Documentos de Contratação</p>
@@ -341,16 +341,16 @@ function App() {
              <DocumentSelector onSelect={setDocType} />
           ) : (
             <>
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-700">{currentDocInfo?.description}</h2>
-                    <button onClick={() => setDocType(DocumentType.NONE)} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors">
+                <div className="flex justify-between items-center mb-6 border-b pb-4 dark:border-gray-700">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-700 dark:text-gray-300">{currentDocInfo?.description}</h2>
+                    <button onClick={() => setDocType(DocumentType.NONE)} className="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition-colors">
                         ← Mudar Documento
                     </button>
                 </div>
 
                 {renderForm()}
                 
-                <div className="mt-8 pt-6 border-t-2 border-gray-200 flex flex-wrap gap-4 justify-center">
+                <div className="mt-8 pt-6 border-t-2 border-gray-200 dark:border-gray-700 flex flex-wrap gap-4 justify-center">
                     <button onClick={saveDraft} className="flex-grow sm:flex-grow-0 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition transform hover:scale-105">💾 Salvar Rascunho</button>
                     <button onClick={loadDraft} className="flex-grow sm:flex-grow-0 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition transform hover:scale-105">📂 Carregar Rascunho</button>
                     <button

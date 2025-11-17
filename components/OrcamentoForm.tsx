@@ -8,20 +8,20 @@ interface OrcamentoFormProps {
 }
 
 const Section: React.FC<{ title: string, children: React.ReactNode, instruction?: string }> = ({ title, children, instruction }) => (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6 dark:bg-gray-700/50 dark:border-gray-600">
         <h2 className="text-xl font-bold text-cbmpa-red mb-4 pb-2 border-b-2 border-cbmpa-red">{title}</h2>
-        {instruction && <p className="text-sm text-gray-600 mb-4 italic">{instruction}</p>}
+        {instruction && <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 italic">{instruction}</p>}
         {children}
     </div>
 );
 
 const Field: React.FC<{ label: string, required?: boolean, children: React.ReactNode, note?: string }> = ({ label, required, children, note }) => (
     <div className="mb-4">
-        <label className="block text-gray-700 font-semibold mb-2">
+        <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">
             {label} {required && <span className="text-red-500">*</span>}
         </label>
         {children}
-        {note && <p className="text-xs text-gray-500 mt-1 italic">{note}</p>}
+        {note && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">{note}</p>}
     </div>
 );
 
@@ -30,7 +30,7 @@ const RadioGroup: React.FC<{ name: keyof OrcamentoData, value: string, options: 
         {options.map(opt => (
             <div key={opt.val} className="flex items-center">
                 <input type="radio" id={`${name}-${opt.val}`} name={name} value={opt.val} checked={value === opt.val} onChange={onChange} className="mr-2 h-4 w-4"/>
-                <label htmlFor={`${name}-${opt.val}`}>{opt.label}</label>
+                <label htmlFor={`${name}-${opt.val}`} className="dark:text-gray-300">{opt.label}</label>
             </div>
         ))}
     </div>
@@ -118,6 +118,7 @@ const estadosBrasileiros = [
 export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [loteInputValue, setLoteInputValue] = useState('');
+  const inputClasses = "w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400";
 
   // Effect for Price Calculation
   useEffect(() => {
@@ -406,20 +407,20 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
               value={data.pae} 
               onChange={handleChange} 
               required 
-              className="w-full p-2 border border-gray-300 rounded-md" 
+              className={inputClasses} 
               placeholder="Ex: 0123"
             />
           </Field>
           <div className="grid md:grid-cols-2 gap-6">
             <Field label="Tipo de Orçamento">
-                <select name="tipoOrcamento" value={data.tipoOrcamento} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md">
+                <select name="tipoOrcamento" value={data.tipoOrcamento} onChange={handleChange} className={inputClasses}>
                     <option value="licitacao">Licitação</option>
                     <option value="adesao_ata">Adesão à Ata de Registro de Preços</option>
                 </select>
             </Field>
             {data.tipoOrcamento === 'licitacao' && (
                 <Field label="Modalidade da Licitação">
-                    <select name="modalidadeLicitacao" value={data.modalidadeLicitacao} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md">
+                    <select name="modalidadeLicitacao" value={data.modalidadeLicitacao} onChange={handleChange} className={inputClasses}>
                         <option value="pregao_eletronico_comum">Pregão Eletrônico</option>
                         <option value="pregao_eletronico_rp">Pregão Eletrônico para SRP</option>
                         <option value="outra">Outra</option>
@@ -429,23 +430,23 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
           </div>
            {data.tipoOrcamento === 'adesao_ata' && (
                 <div className="mt-4">
-                    <p className="block text-gray-700 font-semibold mb-2">Dados da Ata de Registro de Preços</p>
-                    <div className="grid md:grid-cols-2 gap-x-6 gap-y-1 p-4 border rounded-md bg-white shadow-sm">
+                    <p className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Dados da Ata de Registro de Preços</p>
+                    <div className="grid md:grid-cols-2 gap-x-6 gap-y-1 p-4 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 shadow-sm">
                         <Field label="Número da Ata" required>
-                            <input type="text" name="numeroAta" value={data.numeroAta} onChange={handleChange} required className="w-full p-2 border border-gray-300 rounded-md" />
+                            <input type="text" name="numeroAta" value={data.numeroAta} onChange={handleChange} required className={inputClasses} />
                         </Field>
                         <Field label="Ano da Ata" required>
-                            <select name="anoAta" value={data.anoAta} onChange={handleChange} required className="w-full p-2 border border-gray-300 rounded-md">
+                            <select name="anoAta" value={data.anoAta} onChange={handleChange} required className={inputClasses}>
                                 <option value="2024">2024</option>
                                 <option value="2025">2025</option>
                                 <option value="2026">2026</option>
                             </select>
                         </Field>
                         <Field label="Órgão Gerenciador" required>
-                            <input type="text" name="orgaoAta" value={data.orgaoAta} onChange={handleChange} required className="w-full p-2 border border-gray-300 rounded-md" />
+                            <input type="text" name="orgaoAta" value={data.orgaoAta} onChange={handleChange} required className={inputClasses} />
                         </Field>
                         <Field label="Estado" required>
-                            <select name="estadoAta" value={data.estadoAta} onChange={handleChange} required className="w-full p-2 border border-gray-300 rounded-md">
+                            <select name="estadoAta" value={data.estadoAta} onChange={handleChange} required className={inputClasses}>
                                 <option value="">Selecione um Estado</option>
                                 {estadosBrasileiros.map(estado => (
                                     <option key={estado.sigla} value={estado.sigla}>{estado.nome}</option>
@@ -459,14 +460,14 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
       
       <Section title="Itens da Contratação (Descrição e Quantidade)">
         {showLoteControls && selectedItems.size > 0 && (
-            <div className="flex flex-wrap items-center justify-end gap-4 mb-4 p-4 bg-gray-100 rounded-lg">
-                <span className="font-semibold">{selectedItems.size} item(s) selecionado(s)</span>
+            <div className="flex flex-wrap items-center justify-end gap-4 mb-4 p-4 bg-gray-100 dark:bg-gray-700/80 rounded-lg">
+                <span className="font-semibold dark:text-gray-200">{selectedItems.size} item(s) selecionado(s)</span>
                 <input
                     type="text"
                     value={loteInputValue}
                     onChange={e => setLoteInputValue(e.target.value)}
                     placeholder="Nome/Nº do Lote"
-                    className="p-2 border rounded-md"
+                    className="p-2 border rounded-md dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
                 />
                 <button onClick={handleAgrupar} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Agrupar em Lote</button>
                 <button onClick={handleDesagrupar} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Desagrupar</button>
@@ -476,16 +477,16 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
         {showLoteControls ? (
             <>
                 {sortedLoteIds.map(loteId => (
-                    <div key={loteId} className="border-2 border-blue-300 rounded-lg p-4 mb-4">
-                        <h3 className="text-lg font-bold text-blue-700 mb-2">Lote {loteId}</h3>
-                        {(lotes[loteId]).map(group => <ItemForm key={group.id} group={group} selected={selectedItems.has(group.id)} onSelect={toggleItemSelection} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={true} />)}
+                    <div key={loteId} className="border-2 border-blue-300 dark:border-blue-600 rounded-lg p-4 mb-4">
+                        <h3 className="text-lg font-bold text-blue-700 dark:text-blue-300 mb-2">Lote {loteId}</h3>
+                        {(lotes[loteId]).map(group => <ItemForm key={group.id} group={group} selected={selectedItems.has(group.id)} onSelect={toggleItemSelection} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={true} inputClasses={inputClasses} />)}
                     </div>
                 ))}
-                {ungrouped.map(group => <ItemForm key={group.id} group={group} selected={selectedItems.has(group.id)} onSelect={toggleItemSelection} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={true} />)}
+                {ungrouped.map(group => <ItemForm key={group.id} group={group} selected={selectedItems.has(group.id)} onSelect={toggleItemSelection} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={true} inputClasses={inputClasses} />)}
             </>
         ) : (
             <>
-                {data.itemGroups.map(group => <ItemForm key={group.id} group={group} selected={false} onSelect={() => {}} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={false} />)}
+                {data.itemGroups.map(group => <ItemForm key={group.id} group={group} selected={false} onSelect={() => {}} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={false} inputClasses={inputClasses} />)}
             </>
         )}
         
@@ -509,7 +510,7 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
                                         onChange={handleCheckboxChange}
                                         className="h-4 w-4 mt-1 flex-shrink-0 rounded border-gray-300 text-cbmpa-red focus:ring-cbmpa-red"
                                     />
-                                    <label htmlFor={`fonte-${fonte.val}`} className="ml-3 block text-sm text-gray-700">
+                                    <label htmlFor={`fonte-${fonte.val}`} className="ml-3 block text-sm text-gray-700 dark:text-gray-300">
                                         {fonte.label}
                                     </label>
                                 </>
@@ -522,11 +523,11 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
           {data.fontesPesquisa.length === 1 && data.fontesPesquisa.includes('direta') && (
             <div className="mt-6 space-y-4">
                 <Field label="Justificativa da Ausência de Pesquisa de Preço no SIMAS, PNCP ou em Contratações Similares">
-                    <textarea name="justificativaAusenciaFonte" value={data.justificativaAusenciaFonte} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md h-24"
+                    <textarea name="justificativaAusenciaFonte" value={data.justificativaAusenciaFonte} onChange={handleChange} className={`${inputClasses} h-24`}
                     placeholder="(Caso não tenha sido realizada a pesquisa de preço em uma dessas fontes, justifique aqui)."/>
                 </Field>
                 <Field label="Justificativa da Pesquisa Direta com Fornecedores">
-                    <textarea name="justificativaPesquisaDireta" value={data.justificativaPesquisaDireta} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md h-24"
+                    <textarea name="justificativaPesquisaDireta" value={data.justificativaPesquisaDireta} onChange={handleChange} className={`${inputClasses} h-24`}
                     placeholder="(Justificar o motivo de ter sido utilizada essa fonte e quais os critérios de escolha dos fornecedores consultados)."/>
                 </Field>
             </div>
@@ -543,22 +544,22 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
       
       <Section title="Resultado da Pesquisa (Preços Encontrados)" instruction="Adicione os preços pesquisados. Marque as caixas para incluir/excluir um preço do cálculo da estimativa.">
         {data.itemGroups.map(group => (
-            <div key={group.id} className="p-4 border rounded-lg mb-4 bg-white shadow">
-                <h3 className="font-bold text-lg mb-2">Item {group.itemTR}: {group.descricao.substring(0, 50)}...</h3>
+            <div key={group.id} className="p-4 border rounded-lg mb-4 bg-white dark:bg-gray-800 shadow">
+                <h3 className="font-bold text-lg mb-2 dark:text-gray-200">Item {group.itemTR}: {group.descricao.substring(0, 50)}...</h3>
                 <div className="space-y-2">
                     {(data.precosEncontrados[group.id] || []).map(price => (
                         <div key={price.id} className="grid grid-cols-[auto_1fr_1.2fr_auto] gap-2 items-center">
                             <input type="checkbox" title="Incluir no cálculo" checked={data.precosIncluidos[price.id] ?? true} onChange={e => handleInclusionChange(price.id, e.target.checked)} className="h-4 w-4"/>
-                            <span className="font-semibold text-sm">{availableSources.find(s => s.val === price.source)?.label || price.source}</span>
+                            <span className="font-semibold text-sm dark:text-gray-300">{availableSources.find(s => s.val === price.source)?.label || price.source}</span>
                             <div className="relative">
-                                <span className="absolute inset-y-0 left-0 pl-2 flex items-center text-gray-500">R$</span>
+                                <span className="absolute inset-y-0 left-0 pl-2 flex items-center text-gray-500 dark:text-gray-400">R$</span>
                                 <input 
                                     type="text" 
                                     placeholder="0,00" 
                                     value={price.value} 
                                     onChange={e => handlePriceChange(group.id, price.id, e.target.value)} 
                                     onBlur={e => handlePriceBlur(group.id, price.id, e.target.value)}
-                                    className="w-full p-1 pl-8 border-gray-300 border rounded-md text-right" 
+                                    className="w-full p-1 pl-8 border-gray-300 border rounded-md text-right dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" 
                                 />
                             </div>
                             <button onClick={() => removePrice(group.id, price.id)} className="text-red-500 hover:text-red-700 font-bold px-2">X</button>
@@ -566,32 +567,32 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
                     ))}
                 </div>
                 <div className="mt-4 flex items-center gap-2">
-                    <select className="p-2 border border-gray-300 rounded-md" onChange={e => {if(e.target.value) addPrice(group.id, e.target.value); e.target.value = ""}}>
+                    <select className="p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" onChange={e => {if(e.target.value) addPrice(group.id, e.target.value); e.target.value = ""}}>
                         <option value="">-- Adicionar Fonte --</option>
                         {availableSources.map(s => <option key={s.val} value={s.val}>{s.label}</option>)}
                     </select>
                 </div>
             </div>
         ))}
-        {data.itemGroups.length === 0 && <p className="text-center text-gray-500">Adicione um item para inserir preços.</p>}
+        {data.itemGroups.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400">Adicione um item para inserir preços.</p>}
 
         <div className="mt-6">
             <Field label="Houve descarte de preço?"><RadioGroup name="houveDescarte" value={data.houveDescarte} options={[{val: 'sim', label: 'Sim'}, {val: 'nao', label: 'Não'}]} onChange={handleChange} /></Field>
-            {data.houveDescarte === 'sim' && <Field label="Justificativa do Descarte"><textarea name="justificativaDescarte" value={data.justificativaDescarte} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md h-24"/></Field>}
+            {data.houveDescarte === 'sim' && <Field label="Justificativa do Descarte"><textarea name="justificativaDescarte" value={data.justificativaDescarte} onChange={handleChange} className={`${inputClasses} h-24`}/></Field>}
         </div>
       </Section>
       
       <Section title="Assinatura">
         <div className="grid md:grid-cols-2 gap-6">
             <Field label="Cidade" required>
-                <input type="text" name="cidade" value={data.cidade} onChange={handleChange} required className="w-full p-2 border border-gray-300 rounded-md" />
+                <input type="text" name="cidade" value={data.cidade} onChange={handleChange} required className={inputClasses} />
             </Field>
             <Field label="Data" required>
-                <input type="date" name="data" value={data.data} onChange={handleChange} required className="w-full p-2 border border-gray-300 rounded-md" />
+                <input type="date" name="data" value={data.data} onChange={handleChange} required className={inputClasses} />
             </Field>
             
-            <div className="md:col-span-2 p-4 border rounded-md bg-white shadow-sm">
-                <p className="font-semibold mb-2 text-gray-800">Assinante</p>
+            <div className="md:col-span-2 p-4 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 shadow-sm">
+                <p className="font-semibold mb-2 text-gray-800 dark:text-gray-200">Assinante</p>
                 <Field label="Nome Completo" required>
                     <input 
                         type="text" 
@@ -599,7 +600,7 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
                         value={data.assinante1Nome} 
                         onChange={handleChange} 
                         required
-                        className="w-full p-2 border border-gray-300 rounded-md" 
+                        className={inputClasses} 
                     />
                 </Field>
             </div>
@@ -618,29 +619,30 @@ interface ItemFormProps {
     onRemove: (id: string) => void;
     onGroupChange: (id: string, field: keyof OrcamentoItemGroup, value: string | number) => void;
     showSelect: boolean;
+    inputClasses: string;
 }
-const ItemForm: React.FC<ItemFormProps> = ({ group, selected, onSelect, onRemove, onGroupChange, showSelect }) => (
-    <div className="p-4 border-2 border-cbmpa-red rounded-lg mb-4 bg-white shadow-md relative">
+const ItemForm: React.FC<ItemFormProps> = ({ group, selected, onSelect, onRemove, onGroupChange, showSelect, inputClasses }) => (
+    <div className="p-4 border-2 border-cbmpa-red rounded-lg mb-4 bg-white dark:bg-gray-800 shadow-md relative">
         <div className="absolute top-2 right-2 flex items-center gap-4">
             {showSelect && <input type="checkbox" checked={selected} onChange={() => onSelect(group.id)} className="h-5 w-5" title="Selecionar para agrupar"/>}
             <button onClick={() => onRemove(group.id)} className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded">Remover</button>
         </div>
         <div className="grid md:grid-cols-[1fr_2fr] gap-x-6 items-start">
             <div>
-                <Field label="Item TR" required><input type="text" value={group.itemTR} onChange={e => onGroupChange(group.id, 'itemTR', e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/></Field>
-                <Field label="Código SIMAS"><input type="text" value={group.codigoSimas} onChange={e => onGroupChange(group.id, 'codigoSimas', e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/></Field>
-                <Field label="Unidade" required><input type="text" value={group.unidade} onChange={e => onGroupChange(group.id, 'unidade', e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/></Field>
-                <Field label="Quantidade Total" required><input type="number" value={group.quantidadeTotal} onChange={e => onGroupChange(group.id, 'quantidadeTotal', parseFloat(e.target.value) || 0)} className="w-full p-2 border border-gray-300 rounded-md"/></Field>
+                <Field label="Item TR" required><input type="text" value={group.itemTR} onChange={e => onGroupChange(group.id, 'itemTR', e.target.value)} className={inputClasses}/></Field>
+                <Field label="Código SIMAS"><input type="text" value={group.codigoSimas} onChange={e => onGroupChange(group.id, 'codigoSimas', e.target.value)} className={inputClasses}/></Field>
+                <Field label="Unidade" required><input type="text" value={group.unidade} onChange={e => onGroupChange(group.id, 'unidade', e.target.value)} className={inputClasses}/></Field>
+                <Field label="Quantidade Total" required><input type="number" value={group.quantidadeTotal} onChange={e => onGroupChange(group.id, 'quantidadeTotal', parseFloat(e.target.value) || 0)} className={inputClasses}/></Field>
             </div>
             <div>
                 <Field label="Descrição" required>
                     <div className="relative">
-                        <textarea value={group.descricao} onChange={e => onGroupChange(group.id, 'descricao', e.target.value)} required className="w-full p-2 border border-gray-300 rounded-md h-40 pr-10"/>
+                        <textarea value={group.descricao} onChange={e => onGroupChange(group.id, 'descricao', e.target.value)} required className={`${inputClasses} h-40 pr-10`}/>
                         <AiAssistant fieldName={`Descrição do Item ${group.itemTR}`} onGeneratedText={(text) => onGroupChange(group.id, 'descricao', text)} />
                     </div>
                 </Field>
-                <div className="mt-2 p-2 border rounded-md bg-gray-100">
-                    <p className="font-semibold text-sm">Estimativa Unitária (Calculada): <span className="font-bold text-cbmpa-red">{group.estimativaUnitaria.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span></p>
+                <div className="mt-2 p-2 border rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600">
+                    <p className="font-semibold text-sm dark:text-gray-300">Estimativa Unitária (Calculada): <span className="font-bold text-cbmpa-red">{group.estimativaUnitaria.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span></p>
                 </div>
             </div>
         </div>
