@@ -1,0 +1,5 @@
+{
+  "name": "Gerador de Documentos CBMPA",
+  "description": "Uma aplicação web para gerar documentos padronizados para processos de compras e contratações do Corpo de Bombeiros Militar do Pará (CBMPA) em formato PDF.",
+  "requestFramePermissions": []
+}

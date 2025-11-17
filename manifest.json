@@ -1,0 +1,24 @@
+{
+  "short_name": "Gerador CBMPA",
+  "name": "Gerador de Documentos CBMPA",
+  "description": "Uma aplicação web para gerar documentos padronizados para processos de compras e contratações do Corpo de Bombeiros Militar do Pará (CBMPA) em formato PDF.",
+  "icons": [
+    {
+      "src": "icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#c0392b",
+  "background_color": "#ffffff"
+}
