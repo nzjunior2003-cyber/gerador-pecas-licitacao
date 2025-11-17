@@ -1,5 +1,4 @@
 
-
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DocumentType, DfdData, EtpData, RiscoData, OrcamentoData, OrcamentoItemGroup, EtpItem, RiskItem, EtpQualidadeItem } from '../types';
@@ -24,6 +23,29 @@ const USABLE_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
 const HEADER_BLUE_DARK = '#2F5597';
 const HEADER_TEXT_WHITE = '#FFFFFF';
 const BORDER_COLOR_DARK = '#444444';
+
+// ETP-specific Style Constants
+const ETP_FONT_SIZES = {
+    TITLE: 14,
+    SUBTITLE: 12,
+    SECTION_HEADER: 11,
+    LEGAL_REF: 9,
+    QUESTION: 10,
+    TEXT: 10,
+    TABLE_HEADER: 9,
+    TABLE_BODY: 9,
+    FOOTER: 9,
+};
+
+const ETP_COLORS = {
+    TEXT_PRIMARY: '#000000',
+    TEXT_SECONDARY: '#555555',
+    SECTION_HEADER_BG: '#EAEAEA',
+    TABLE_HEADER_BG: '#444444',
+    TABLE_HEADER_TEXT: '#FFFFFF',
+    TABLE_ROW_ALT_BG: '#F5F5F5',
+};
+
 
 let yPos = MARGIN_TOP;
 
@@ -64,57 +86,20 @@ const checkAndAddPage = (doc: jsPDF, neededHeight: number) => {
     return false;
 };
 
-const addHeader = (doc: jsPDF, title: string, subtitle?: string) => {
-    doc.setFontSize(14);
-    doc.setFont(FONT_FAMILY, 'bold');
-    doc.text(title.toUpperCase(), PAGE_WIDTH / 2, yPos, { align: 'center' });
-    yPos += 7;
-    if (subtitle) {
-        doc.setFontSize(11);
-        doc.setFont(FONT_FAMILY, 'normal');
-        doc.text(subtitle, PAGE_WIDTH / 2, yPos, { align: 'center' });
-        yPos += 8;
-    }
-    yPos += 5; // Extra space after header
-};
-
-const addSectionTitle = (doc: jsPDF, title: string, subtitle?: string) => {
-    const neededHeight = subtitle ? 22 : 15;
-    if(checkAndAddPage(doc, neededHeight)) {
-        yPos += 5; // add some padding if a new page was added
-    }
-
-    doc.setFont(FONT_FAMILY, 'bold');
-    doc.setFontSize(11);
-    doc.text(title, MARGIN_LEFT, yPos);
-    yPos += 6;
-
-    if (subtitle) {
-        doc.setFont(FONT_FAMILY, 'normal');
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.text(subtitle, MARGIN_LEFT, yPos);
-        yPos += 8;
-        doc.setTextColor(0);
-    }
-    yPos += 2;
-};
-
-
-const addText = (doc: jsPDF, text: string, options: { isBold?: boolean, indent?: number, isQuestion?: boolean } = {}) => {
-    const { isBold = false, indent = 0, isQuestion = false } = options;
+const addText = (doc: jsPDF, text: string, options: { isBold?: boolean, indent?: number, align?: 'justify' | 'left' | 'center' | 'right' } = {}) => {
+    const { isBold = false, indent = 0, align = 'justify' } = options;
     const effectiveWidth = USABLE_WIDTH - indent;
     const lines = doc.splitTextToSize(text || 'Não informado.', effectiveWidth);
     
     checkAndAddPage(doc, lines.length * 5 + 2);
 
-    doc.setFont(FONT_FAMILY, isBold || isQuestion ? 'bold' : 'normal');
+    doc.setFont(FONT_FAMILY, isBold ? 'bold' : 'normal');
     doc.setFontSize(10);
-    doc.text(lines, MARGIN_LEFT + indent, yPos);
-    yPos += lines.length * 5 + (isQuestion ? 2 : 0); 
+    doc.text(lines, MARGIN_LEFT + indent, yPos, { align });
+    yPos += lines.length * 5;
 };
 
-const addSignatory = (doc: jsPDF, data: { cidade: string; data: string; nome: string; cargo: string; funcao: string; }) => {
+const addSignatoryOld = (doc: jsPDF, data: { cidade: string; data: string; nome: string; cargo: string; funcao: string; }) => {
     checkAndAddPage(doc, 40);
     const date = new Date(data.data + 'T00:00:00');
     const formattedDate = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
@@ -129,7 +114,7 @@ const addSignatory = (doc: jsPDF, data: { cidade: string; data: string; nome: st
 };
 
 const commonAutoTableOptions = {
-    theme: 'grid',
+    theme: 'grid' as const,
     styles: { font: FONT_FAMILY, fontSize: 9, cellPadding: 2, lineColor: BORDER_COLOR_DARK, lineWidth: 0.1 },
     headStyles: { fillColor: HEADER_BLUE_DARK, textColor: HEADER_TEXT_WHITE, fontStyle: 'bold' as const },
     footStyles: { fillColor: '#EAEAEA', textColor: '#000000', fontStyle: 'bold' as const },
@@ -228,60 +213,139 @@ const generateDfdPdf = (doc: jsPDF, data: DfdData) => {
 
 
 // --- ETP ---
-const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
-    addHeader(doc, 'ESTUDO TÉCNICO PRELIMINAR (ETP)', `PAE Nº ${data.pae}`);
 
-    // Section 1
-    addSectionTitle(doc, '1 – DESCRIÇÃO DA NECESSIDADE', '(art. 18, §1º, I, da Lei Federal nº 14.133/21)');
-    addText(doc, data.necessidade);
-    yPos += 5;
+const addPageNumbers = (doc: jsPDF) => {
+    const totalPages = doc.internal.pages.length - 1;
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(ETP_FONT_SIZES.FOOTER);
+        doc.setFont(FONT_FAMILY, 'normal');
+        doc.setTextColor(ETP_COLORS.TEXT_SECONDARY);
+        const text = `Página ${i} de ${totalPages}`;
+        doc.text(text, PAGE_WIDTH - MARGIN_RIGHT, PAGE_HEIGHT - 10, { align: 'right'});
 
-    // Section 2
-    addSectionTitle(doc, '2 – LEVANTAMENTO DE MERCADO', '(arts. 18, §1º, V, e 44 da Lei Federal nº 14.133/21)');
-    addText(doc, `Fontes pesquisadas: ${data.fontesPesquisa?.join(', ')}${data.fonteOutro ? ` (Outro: ${data.fonteOutro})` : ''}.`);
-    addText(doc, `Justificativa técnica e econômica: ${data.justificativaTecnica}`);
-    addText(doc, `Restrição de fornecedores: ${data.restricaoFornecedores === 'sim' ? 'Sim' : 'Não'}`);
-    yPos += 5;
-
-    // Section 3
-    addSectionTitle(doc, '3 – DESCRIÇÃO DOS REQUISITOS DE CONTRATAÇÃO', '(art. 18, §1º, III, da Lei Federal nº 14.133/21)');
-    addText(doc, `Tipo de objeto: ${data.tipoObjeto?.join(', ')}`);
-    addText(doc, `Natureza: ${data.natureza}`);
-    addText(doc, `Monopólio: ${data.monopolio}`);
-    let vigenciaText = data.vigencia === 'outro' ? `${data.vigenciaOutroNum} ${data.vigenciaOutroTipo}` : data.vigencia;
-    addText(doc, `Vigência: ${vigenciaText}`);
-    addText(doc, `Prorrogação: ${data.prorrogacao}`);
-    addText(doc, `Transição Contratual: ${data.transicao}`);
-    if (data.transicao === 'sim') addText(doc, `Contrato: ${data.transicaoContrato}, Prazo: ${data.transicaoPrazo}`, { indent: 5 });
-    
-    addText(doc, 'Padrão Mínimo de Qualidade:', { isBold: true });
-    data.padraoQualidade?.forEach((item: EtpQualidadeItem) => addText(doc, `- ${item.descricao}`, { indent: 5 }));
-    
-    addText(doc, 'Quais critérios de sustentabilidade?', { isQuestion: true });
-    data.sustentabilidade?.forEach(s => addText(doc, `(X) ${s}`, { indent: 5 }));
-    if(data.sustentabilidade?.includes('Outro.') && data.sustentabilidadeOutro) addText(doc, `Especificar: ${data.sustentabilidadeOutro}`, { indent: 10 });
-    
-    addText(doc, 'Há prioridade para aquisição ou contratação, conforme Lei nº 12.035/2010?', { isQuestion: true });
-    if(data.prioridadeLeiTipo) {
-      const prioridadeText = data.prioridadeLeiTipo === 'reciclados' ? 'Sim, para produtos reciclados e recicláveis.' 
-          : data.prioridadeLeiTipo === 'sustentaveis' ? 'Sim, para bens, serviços e obras que considerem critérios compatíveis com padrões de consumo social e ambientalmente sustentáveis.' 
-          : 'Não.';
-      addText(doc, `(X) ${prioridadeText}`, { indent: 5 });
-      if (data.prioridadeLeiTipo === 'nao' && data.prioridadeLeiJustificativa) {
-        addText(doc, `Justificativa: ${data.prioridadeLeiJustificativa}`, { indent: 10 });
-      }
+        if (i > 1) { // Add header to all pages except the first
+            doc.setFontSize(ETP_FONT_SIZES.LEGAL_REF);
+            doc.text('Estudo Técnico Preliminar', MARGIN_LEFT, 12);
+            doc.text(`PAE Nº ${doc.internal.pdflib.page.userObjects.pae || ''}`, PAGE_WIDTH - MARGIN_RIGHT, 12, { align: 'right' });
+            doc.setDrawColor(ETP_COLORS.TEXT_SECONDARY);
+            doc.line(MARGIN_LEFT, 15, PAGE_WIDTH - MARGIN_RIGHT, 15);
+        }
     }
+}
 
-    addText(doc, 'Há necessidade de treinamento?', { isQuestion: true });
-    addText(doc, data.treinamento === 'sim' ? '(X) Sim' : data.treinamento === 'nao' ? '(X) Não' : 'Não informado', { indent: 5 });
+const etpCheckAndAddPage = (doc: jsPDF, neededHeight: number) => {
+    if (yPos + neededHeight > (PAGE_HEIGHT - MARGIN_BOTTOM)) {
+        doc.addPage();
+        yPos = MARGIN_TOP;
+        return true;
+    }
+    return false;
+};
+
+const addEtpSectionHeader = (doc: jsPDF, number: string, title: string, legalRef: string) => {
+    etpCheckAndAddPage(doc, 20);
+    yPos += 8;
+    doc.setFontSize(ETP_FONT_SIZES.SECTION_HEADER);
+    doc.setFont(FONT_FAMILY, 'bold');
+    doc.setFillColor(ETP_COLORS.SECTION_HEADER_BG);
+    doc.rect(MARGIN_LEFT, yPos, USABLE_WIDTH, 8, 'F');
+    doc.setTextColor(ETP_COLORS.TEXT_PRIMARY);
+    doc.text(`${number} – ${title.toUpperCase()}`, MARGIN_LEFT + 2, yPos + 6);
+
+    doc.setFontSize(ETP_FONT_SIZES.LEGAL_REF);
+    doc.setFont(FONT_FAMILY, 'normal');
+    doc.setTextColor(ETP_COLORS.TEXT_SECONDARY);
+    doc.text(legalRef, PAGE_WIDTH - MARGIN_RIGHT - 2, yPos + 6, { align: 'right' });
+    
+    yPos += 14;
+}
+
+const addEtpQuestionAnswer = (doc: jsPDF, question: string, answer: string | string[], options: {isList?: boolean} = {}) => {
+    etpCheckAndAddPage(doc, 10);
+    doc.setFontSize(ETP_FONT_SIZES.QUESTION);
+    doc.setFont(FONT_FAMILY, 'bold');
+    doc.setTextColor(ETP_COLORS.TEXT_PRIMARY);
+    
+    const questionLines = doc.splitTextToSize(question, USABLE_WIDTH);
+    doc.text(questionLines, MARGIN_LEFT, yPos);
+    yPos += questionLines.length * 5;
+
+    doc.setFont(FONT_FAMILY, 'normal');
+    doc.setFontSize(ETP_FONT_SIZES.TEXT);
+    const answerText = Array.isArray(answer) ? answer.join(', ') : answer;
+    const lines = doc.splitTextToSize(answerText || "Não informado.", USABLE_WIDTH - 5);
+    etpCheckAndAddPage(doc, lines.length * 6);
+    doc.text(lines, MARGIN_LEFT + 5, yPos, { align: 'justify' });
+    yPos += lines.length * 5 + 4;
+};
+
+const addEtpSignatory = (doc: jsPDF, data: { cidade: string; data: string; nome: string; cargo: string; funcao: string; }) => {
+    etpCheckAndAddPage(doc, 50);
+    const date = new Date(data.data + 'T00:00:00');
+    const formattedDate = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+
+    yPos += 15;
+    doc.setFontSize(ETP_FONT_SIZES.TEXT);
+    doc.setFont(FONT_FAMILY, 'normal');
+    doc.text(`${data.cidade} (PA), ${formattedDate}.`, PAGE_WIDTH - MARGIN_RIGHT, yPos, { align: 'right' });
+    yPos += 30;
+
+    const signatureX = PAGE_WIDTH / 2;
+    doc.text('________________________________', signatureX, yPos, { align: 'center' });
+    yPos += 6;
+    doc.setFontSize(ETP_FONT_SIZES.TEXT);
+    doc.setFont(FONT_FAMILY, 'bold');
+    doc.text(data.nome.toUpperCase(), signatureX, yPos, { align: 'center' });
     yPos += 5;
+    doc.setFont(FONT_FAMILY, 'normal');
+    doc.setFontSize(ETP_FONT_SIZES.TABLE_BODY);
+    doc.text(data.cargo, signatureX, yPos, { align: 'center' });
+    yPos += 5;
+    doc.text(`Função: ${data.funcao}`, signatureX, yPos, { align: 'center' });
+}
 
-    // Section 4
-    addSectionTitle(doc, '4 – DESCRIÇÃO DA SOLUÇÃO', '(art. 18, §1º, VII, da Lei Federal nº 14.133/21)');
-    addText(doc, 'O que será contratado?', { isQuestion: true });
-    addText(doc, data.solucaoContratacao);
 
-    addText(doc, 'Qual o prazo da garantia contratual?', { isQuestion: true });
+const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
+    doc.internal.pdflib.page.userObjects.pae = data.pae; // Store PAE for header
+    // --- TITLE ---
+    doc.setFontSize(ETP_FONT_SIZES.TITLE);
+    doc.setFont(FONT_FAMILY, 'bold');
+    doc.text('ESTUDO TÉCNICO PRELIMINAR (ETP)', PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 8;
+    doc.setFontSize(ETP_FONT_SIZES.SUBTITLE);
+    doc.setFont(FONT_FAMILY, 'normal');
+    doc.text(`PAE Nº ${data.pae}`, PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 10;
+    
+    // --- SECTIONS ---
+    addEtpSectionHeader(doc, '1', 'DESCRIÇÃO DA NECESSIDADE', '(art. 18, §1º, I, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '1.1. Necessidade a ser atendida:', data.necessidade);
+
+    addEtpSectionHeader(doc, '2', 'LEVANTAMENTO DE MERCADO', '(arts. 18, §1º, V, e 44 da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '2.1. Fontes pesquisadas:', `${data.fontesPesquisa?.join(', ')}${data.fonteOutro ? ` (Outro: ${data.fonteOutro})` : ''}.`);
+    addEtpQuestionAnswer(doc, '2.2. Justificativa técnica e econômica:', data.justificativaTecnica);
+    addEtpQuestionAnswer(doc, '2.3. Restrição de fornecedores:', data.restricaoFornecedores === 'sim' ? 'Sim' : 'Não');
+    
+    addEtpSectionHeader(doc, '3', 'DESCRIÇÃO DOS REQUISITOS DE CONTRATAÇÃO', '(art. 18, §1º, III, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '3.1. Tipo de objeto:', data.tipoObjeto?.join(', '));
+    addEtpQuestionAnswer(doc, '3.2. Natureza:', data.natureza);
+    addEtpQuestionAnswer(doc, '3.3. Monopólio:', data.monopolio);
+    const vigenciaText = data.vigencia === 'outro' ? `${data.vigenciaOutroNum} ${data.vigenciaOutroTipo}` : data.vigencia;
+    addEtpQuestionAnswer(doc, '3.4. Vigência:', vigenciaText);
+    addEtpQuestionAnswer(doc, '3.5. Prorrogação:', data.prorrogacao);
+    addEtpQuestionAnswer(doc, '3.6. Transição Contratual:', data.transicao === 'sim' ? `Sim. Contrato: ${data.transicaoContrato}, Prazo: ${data.transicaoPrazo}` : 'Não');
+    addEtpQuestionAnswer(doc, '3.7. Padrão Mínimo de Qualidade:', data.padraoQualidade?.map(item => `- ${item.descricao}`) || []);
+    addEtpQuestionAnswer(doc, '3.8. Critérios de sustentabilidade:', data.sustentabilidade?.length > 0 ? data.sustentabilidade.map(s => `- ${s}${s.includes('Outro') && data.sustentabilidadeOutro ? ` (${data.sustentabilidadeOutro})` : ''}`) : ["Não se aplica."]);
+    
+    const prioridadeText = data.prioridadeLeiTipo === 'reciclados' ? 'Sim, para produtos reciclados e recicláveis.' 
+        : data.prioridadeLeiTipo === 'sustentaveis' ? 'Sim, para bens, serviços e obras que considerem critérios compatíveis com padrões de consumo social e ambientalmente sustentáveis.' 
+        : 'Não.';
+    addEtpQuestionAnswer(doc, '3.9. Prioridade (Lei nº 12.035/2010):', data.prioridadeLeiTipo === 'nao' && data.prioridadeLeiJustificativa ? `${prioridadeText} Justificativa: ${data.prioridadeLeiJustificativa}` : prioridadeText);
+    addEtpQuestionAnswer(doc, '3.10. Necessidade de treinamento:', data.treinamento);
+    
+    addEtpSectionHeader(doc, '4', 'DESCRIÇÃO DA SOLUÇÃO', '(art. 18, §1º, VII, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '4.1. O que será contratado?', data.solucaoContratacao);
     let garantiaText = '';
     switch(data.garantiaContratual) {
         case 'nao_ha': garantiaText = 'Não há.'; break;
@@ -290,32 +354,17 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
         case 'outro': garantiaText = `Outro: ${data.garantiaOutroNum} ${data.garantiaOutroTipo}`; break;
         default: garantiaText = 'Não informado.';
     }
-    addText(doc, `(X) ${garantiaText}`, { indent: 5 });
-
-    addText(doc, 'Há necessidade de assistência técnica?', { isQuestion: true });
-    addText(doc, data.assistenciaTecnica === 'sim' ? '(X) Sim' : data.assistenciaTecnica === 'nao' ? '(X) Não' : 'Não informado', { indent: 5 });
-
-    addText(doc, 'Há necessidade de manutenção?', { isQuestion: true });
-    addText(doc, data.manutencao === 'sim' ? '(X) Sim' : data.manutencao === 'nao' ? '(X) Não' : 'Não informado', { indent: 5 });
-    yPos += 5;
-
-    // Section 5
-    addSectionTitle(doc, '5 – DIMENSIONAMENTO DO OBJETO', '(art. 18, §1º, IV, da Lei Federal nº 14.133/21)');
-    addText(doc, 'Como se obteve o quantitativo estimado?', { isQuestion: true });
-    data.metodoQuantitativo?.forEach(m => addText(doc, `(X) ${m}`, { indent: 5 }));
-    if(data.metodoQuantitativo?.includes('Outro.') && data.metodoOutro) addText(doc, `Especificar: ${data.metodoOutro}`, { indent: 10 });
-
-    addText(doc, 'Descrição do Quantitativo:', { isBold: true });
-    addText(doc, data.descricaoQuantitativo);
-    yPos += 5;
-
-    // Section 6
-    addSectionTitle(doc, '6 – ESTIMATIVA DO VALOR DA CONTRATAÇÃO', '(art. 18, §1º, VI, da Lei Federal nº 14.133/21)');
-    addText(doc, 'Meios usados na pesquisa:', { isQuestion: true });
-    data.meiosPesquisa?.forEach(m => addText(doc, `(X) ${m}`, { indent: 5 }));
-    if(data.meiosPesquisa?.includes('Outro.') && data.meiosPesquisaOutro) addText(doc, `Especificar: ${data.meiosPesquisaOutro}`, { indent: 10 });
-    yPos += 5;
+    addEtpQuestionAnswer(doc, '4.2. Prazo da garantia contratual?', garantiaText);
+    addEtpQuestionAnswer(doc, '4.3. Necessidade de assistência técnica?', data.assistenciaTecnica);
+    addEtpQuestionAnswer(doc, '4.4. Necessidade de manutenção?', data.manutencao);
     
+    addEtpSectionHeader(doc, '5', 'DIMENSIONAMENTO DO OBJETO', '(art. 18, §1º, IV, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '5.1. Método para obter o quantitativo:', data.metodoQuantitativo.map(s => `- ${s}${s.includes('Outro') && data.metodoOutro ? ` (${data.metodoOutro})` : ''}`));
+    addEtpQuestionAnswer(doc, '5.2. Descrição do Quantitativo:', data.descricaoQuantitativo);
+    
+    addEtpSectionHeader(doc, '6', 'ESTIMATIVA DO VALOR DA CONTRATAÇÃO', '(art. 18, §1º, VI, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '6.1. Meios usados na pesquisa:', data.meiosPesquisa.map(s => `- ${s}${s.includes('Outro') && data.meiosPesquisaOutro ? ` (${data.meiosPesquisaOutro})` : ''}`));
+    yPos += 2;
     // Tabela de itens
     if (data.itens && data.itens.length > 0) {
         const body = data.itens.map((item, index) => [
@@ -328,83 +377,67 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
         ]);
         const totalGeral = data.itens.reduce((sum, item) => sum + (item.quantidade * item.valorUnitario), 0);
         
-        checkAndAddPage(doc, data.itens.length * 10 + 20);
+        etpCheckAndAddPage(doc, data.itens.length * 10 + 20);
         autoTable(doc, {
-            ...commonAutoTableOptions,
             startY: yPos,
             head: [['Item', 'Descrição', 'Unidade', 'Qtd', 'Valor Unit.', 'Valor Total']],
             body: body,
-            foot: [['Total', '', '', '', '', totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]],
+            foot: [['Total Geral', '', '', '', '', totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]],
+            theme: 'striped',
+            styles: { font: FONT_FAMILY, fontSize: ETP_FONT_SIZES.TABLE_BODY, cellPadding: 2, overflow: 'linebreak' },
+            headStyles: { fillColor: ETP_COLORS.TABLE_HEADER_BG, textColor: ETP_COLORS.TABLE_HEADER_TEXT, fontStyle: 'bold', fontSize: ETP_FONT_SIZES.TABLE_HEADER, halign: 'center' },
+            footStyles: { fillColor: ETP_COLORS.TABLE_HEADER_BG, textColor: ETP_COLORS.TABLE_HEADER_TEXT, fontStyle: 'bold' },
+            columnStyles: {
+                0: { cellWidth: 15, halign: 'center' },
+                1: { cellWidth: 'auto' },
+                2: { cellWidth: 20, halign: 'center' },
+                3: { cellWidth: 15, halign: 'center' },
+                4: { cellWidth: 25, halign: 'right' },
+                5: { cellWidth: 25, halign: 'right' }
+            },
+            margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
             didDrawPage: (hookData) => { yPos = hookData.cursor?.y || yPos; }
         });
-        yPos = (doc as any).lastAutoTable.finalY + 10;
+        yPos = (doc as any).lastAutoTable.finalY + 5;
     }
 
-    // Section 7
-    addSectionTitle(doc, '7 – JUSTIFICATIVA PARA O PARCELAMENTO DA SOLUÇÃO', '(art. 18, §1º, VIII, art. 40, V, b, 47, II, da Lei Federal nº 14.133/21)');
-    addText(doc, 'A solução será dividida em itens?', { isQuestion: true });
-    addText(doc, data.parcelamento === 'sim' ? '(X) Sim.' : data.parcelamento === 'nao' ? '(X) Não.' : 'Não informado.', { indent: 5 });
-    if(data.parcelamento === 'nao') {
-      addText(doc, 'Por quê?', { isQuestion: true, indent: 5 });
-      data.motivosNaoParcelamento?.forEach(m => addText(doc, `(X) ${m}`, { indent: 10 }));
-      if(data.motivosNaoParcelamento?.includes('Outro.') && data.motivosNaoParcelamentoOutro) addText(doc, `Especificar: ${data.motivosNaoParcelamentoOutro}`, { indent: 15 });
-    }
-    yPos += 5;
-    
-    // Section 8
-    addSectionTitle(doc, '8 – CONTRATAÇÕES CORRELATAS OU INTERDEPENDENTES', '(art. 18, §1º, XI, da Lei Federal nº 14.133/21)');
-    addText(doc, 'Há contratações correlatas ou interdependentes?', { isQuestion: true });
-    addText(doc, data.contratacoesCorrelatas === 'sim' ? '(X) Sim.' : data.contratacoesCorrelatas === 'nao' ? '(X) Não.' : 'Não informado.', { indent: 5 });
-    if(data.contratacoesCorrelatas === 'sim' && data.contratacoesCorrelatasEspecificar) addText(doc, `Especificar: ${data.contratacoesCorrelatasEspecificar}`, { indent: 10 });
-    yPos += 5;
-    
-    // Section 9
-    addSectionTitle(doc, '9 – ALINHAMENTO DA CONTRATAÇÃO COM O PLANEJAMENTO', '(art. 18, §1º, II, da Lei Federal nº 14.133/21)');
-    addText(doc, 'Há previsão no plano de contratações anual?', { isQuestion: true });
-    addText(doc, data.previsaoPCA === 'sim' ? '(X) Sim.' : data.previsaoPCA === 'nao' ? '(X) Não.' : 'Não informado.', { indent: 5 });
-    if(data.previsaoPCA === 'sim' && data.itemPCA) addText(doc, `Especificar item do PCA: ${data.itemPCA}`, { indent: 10 });
-    if(data.previsaoPCA === 'nao' && data.justificativaPCA) addText(doc, `Justificativa e providências: ${data.justificativaPCA}`, { indent: 10 });
-    yPos += 5;
-    
-    // Section 10
-    addSectionTitle(doc, '10 – RESULTADOS PRETENDIDOS', '(art. 18, §1º, IX, da Lei Federal nº 14.133/21)');
-    addText(doc, 'Quais os benefícios pretendidos na contratação?', { isQuestion: true });
-    data.beneficios?.forEach(b => addText(doc, `(X) ${b}`, { indent: 5 }));
-    if(data.beneficios?.includes('Outro.') && data.beneficiosOutro) addText(doc, `Especificar: ${data.beneficiosOutro}`, { indent: 10 });
-    yPos += 5;
-    
-    // Section 11
-    addSectionTitle(doc, '11 – PENDÊNCIAS RELATIVAS À CONTRATAÇÃO', '(art. 18, §1º, X, da Lei Federal nº 14.133/21)');
-    addText(doc, 'Há providências pendentes para o sucesso da contratação?', { isQuestion: true });
-    addText(doc, data.pendencias === 'sim' ? '(X) Sim.' : data.pendencias === 'nao' ? '(X) Não.' : 'Não informado.', { indent: 5 });
-    if(data.pendencias === 'sim' && data.pendenciasEspecificar) addText(doc, `Especificar: ${data.pendenciasEspecificar}`, { indent: 10 });
-    addText(doc, 'Quais são os setores responsáveis pelas providências pendentes?', { isQuestion: true });
-    addText(doc, data.pendenciasResponsaveis);
-    yPos += 5;
+    addEtpSectionHeader(doc, '7', 'JUSTIFICATIVA PARA O PARCELAMENTO DA SOLUÇÃO', '(art. 18, §1º, VIII, art. 40, V, b, 47, II, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '7.1. A solução será dividida em itens?', data.parcelamento === 'nao' ? `Não. Motivos: ${data.motivosNaoParcelamento.join(', ')}${data.motivosNaoParcelamentoOutro ? ` (Outro: ${data.motivosNaoParcelamentoOutro})` : ''}.` : 'Sim.');
 
-    // Section 12
-    addSectionTitle(doc, '12 – IMPACTOS AMBIENTAIS E MEDIDAS DE MITIGAÇÃO', '(art. 18, §1º, XII, da Lei Federal nº 14.133/21)');
-    addText(doc, 'Há previsão de impacto ambiental na contratação?', { isQuestion: true });
-    addText(doc, data.impactoAmbiental === 'sim' ? '(X) Sim.' : data.impactoAmbiental === 'nao' ? '(X) Não.' : 'Não informado.', { indent: 5 });
-    if(data.impactoAmbiental === 'sim') {
-        addText(doc, `Impactos: ${data.impactos}`, { indent: 10 });
-        addText(doc, `Medidas de mitigação: ${data.medidasMitigacao}`, { indent: 10 });
-    }
-    yPos += 5;
+    addEtpSectionHeader(doc, '8', 'CONTRATAÇÕES CORRELATAS OU INTERDEPENDENTES', '(art. 18, §1º, XI, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '8.1. Há contratações correlatas ou interdependentes?', data.contratacoesCorrelatas === 'sim' ? `Sim. Especificação: ${data.contratacoesCorrelatasEspecificar}` : 'Não.');
     
-    // Section 13
-    addSectionTitle(doc, '13 – DECLARAÇÃO DE VIABILIDADE');
-    addText(doc, 'A contratação possui viabilidade técnica, socioeconômica e ambiental?', { isQuestion: true });
-    addText(doc, data.viabilidade === 'sim' ? '(X) Sim.' : data.viabilidade === 'nao' ? '(X) Não.' : 'Não informado.', { indent: 5 });
+    addEtpSectionHeader(doc, '9', 'ALINHAMENTO DA CONTRATAÇÃO COM O PLANEJAMENTO', '(art. 18, §1º, II, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '9.1. Previsão no plano de contratações anual?', data.previsaoPCA === 'sim' ? `Sim. Item do PCA: ${data.itemPCA}` : `Não. Justificativa: ${data.justificativaPCA}`);
+
+    addEtpSectionHeader(doc, '10', 'RESULTADOS PRETENDIDOS', '(art. 18, §1º, IX, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '10.1. Benefícios pretendidos:', data.beneficios.map(s => `- ${s}${s.includes('Outro') && data.beneficiosOutro ? ` (${data.beneficiosOutro})` : ''}`));
     
-    // Assinatura
-    addSignatory(doc, data);
+    addEtpSectionHeader(doc, '11', 'PENDÊNCIAS RELATIVAS À CONTRATAÇÃO', '(art. 18, §1º, X, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '11.1. Providências pendentes?', data.pendencias === 'sim' ? `Sim. Especificação: ${data.pendenciasEspecificar}` : 'Não.');
+    addEtpQuestionAnswer(doc, '11.2. Setores responsáveis:', data.pendenciasResponsaveis);
+
+    addEtpSectionHeader(doc, '12', 'IMPACTOS AMBIENTAIS E MEDIDAS DE MITIGAÇÃO', '(art. 18, §1º, XII, da Lei Federal nº 14.133/21)');
+    addEtpQuestionAnswer(doc, '12.1. Previsão de impacto ambiental?', data.impactoAmbiental === 'sim' ? `Sim. Impactos: ${data.impactos}. Medidas de mitigação: ${data.medidasMitigacao}` : 'Não.');
+    
+    addEtpSectionHeader(doc, '13', 'DECLARAÇÃO DE VIABILIDADE', '');
+    addEtpQuestionAnswer(doc, '13.1. Viabilidade da contratação:', data.viabilidade === 'sim' ? 'Declaro que a contratação é viável.' : 'Declaro que a contratação é inviável.');
+    
+    addEtpSignatory(doc, data);
 };
 
 
 // --- ANÁLISE DE RISCO ---
 const generateRiscoPdf = (doc: jsPDF, data: RiscoData) => {
-    addHeader(doc, 'ANÁLISE DE RISCOS', `PAE Nº ${data.pae}`);
+    // Header
+    doc.setFontSize(14);
+    doc.setFont(FONT_FAMILY, 'bold');
+    doc.text('ANÁLISE DE RISCOS', PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 7;
+    doc.setFontSize(11);
+    doc.setFont(FONT_FAMILY, 'normal');
+    doc.text(`PAE Nº ${data.pae}`, PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 12;
     
     if (data.riscos && data.riscos.length > 0) {
         data.riscos.forEach((risco: RiskItem, index) => {
@@ -431,9 +464,10 @@ const generateRiscoPdf = (doc: jsPDF, data: RiscoData) => {
         });
     } else {
         addText(doc, 'Nenhum risco foi identificado.');
+        yPos += 10;
     }
     
-    addSignatory(doc, data);
+    addSignatoryOld(doc, data);
 };
 
 // --- ORÇAMENTO ---
@@ -458,6 +492,7 @@ export const generatePdf = (docType: DocumentType, data: any): { success: boolea
                 break;
             case DocumentType.ETP:
                 generateEtpPdf(doc, data as EtpData);
+                addPageNumbers(doc); // ETP has special page numbering
                 break;
             case DocumentType.RISCO:
                 generateRiscoPdf(doc, data as RiscoData);
