@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { DocumentType, DfdData, EtpData, RiscoData, OrcamentoData } from './types';
 import { generatePdf } from './services/pdfGenerator';
@@ -14,7 +15,7 @@ const initialSignatory = {
   data: today,
   nome: '',
   cargo: '',
-  matricula: '',
+  funcao: '',
 };
 
 const initialDfdState: DfdData = {

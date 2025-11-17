@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 import { EtpData, EtpItem, EtpQualidadeItem } from '../types';
 
@@ -5,6 +6,13 @@ interface EtpFormProps {
   data: EtpData;
   setData: React.Dispatch<React.SetStateAction<EtpData>>;
 }
+
+const cargoOptions = [
+    'SD QBM', 'CB QBM', '3° SGT QBM', '2° SGT QBM', '1° SGT QBM', 'ST QBM',
+    '2° TEN QOBM', '2° TEN QOABM', '1° TEN QOBM', '1° TEN QOABM',
+    'CAP QOBM', 'CAP QOABM', 'MAJ QOBM', 'MAJ QOABM',
+    'TCEL QOBM', 'CEL QOBM', 'CEL QOCBM', 'CEL QOSBM'
+];
 
 const Section: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => (
     <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6 dark:bg-gray-700/50 dark:border-gray-600">
@@ -386,8 +394,13 @@ export const EtpForm: React.FC<EtpFormProps> = ({ data, setData }) => {
           <Field label="Cidade" required><input type="text" name="cidade" value={data.cidade} onChange={handleChange} required className={inputClasses} /></Field>
           <Field label="Data" required><input type="date" name="data" value={data.data} onChange={handleChange} required className={inputClasses} /></Field>
           <Field label="Nome do Servidor" required><input type="text" name="nome" value={data.nome} onChange={handleChange} required className={inputClasses} /></Field>
-          <Field label="Cargo" required><input type="text" name="cargo" value={data.cargo} onChange={handleChange} required className={inputClasses} /></Field>
-          <Field label="Matrícula" required><input type="text" name="matricula" value={data.matricula} onChange={handleChange} required className={inputClasses} /></Field>
+          <Field label="Cargo" required>
+            <select name="cargo" value={data.cargo} onChange={handleChange} required className={inputClasses}>
+                <option value="">Selecione o cargo</option>
+                {cargoOptions.map(cargo => <option key={cargo} value={cargo}>{cargo}</option>)}
+            </select>
+          </Field>
+          <Field label="Função" required><input type="text" name="funcao" value={data.funcao} onChange={handleChange} required className={inputClasses} /></Field>
         </div>
       </Section>
     </div>

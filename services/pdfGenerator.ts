@@ -96,7 +96,7 @@ const addText = (doc: jsPDF, text: string, options: { isBold?: boolean, indent?:
     yPos += lines.length * 5; 
 };
 
-const addSignatory = (doc: jsPDF, data: { cidade: string; data: string; nome: string; cargo: string; matricula: string; }) => {
+const addSignatory = (doc: jsPDF, data: { cidade: string; data: string; nome: string; cargo: string; funcao: string; }) => {
     checkAndAddPage(doc, 40);
     const date = new Date(data.data + 'T00:00:00');
     const formattedDate = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
@@ -107,7 +107,7 @@ const addSignatory = (doc: jsPDF, data: { cidade: string; data: string; nome: st
     addText(doc, data.nome, { isBold: true });
     yPos -= 2; // small adjustment
     addText(doc, data.cargo);
-    addText(doc, `Matrícula: ${data.matricula}`);
+    addText(doc, `Função: ${data.funcao}`);
 };
 
 const commonAutoTableOptions = {
@@ -120,45 +120,94 @@ const commonAutoTableOptions = {
 
 // --- DFD ---
 const generateDfdPdf = (doc: jsPDF, data: DfdData) => {
-    addHeader(doc, 'DOCUMENTO DE FORMALIZAÇÃO DA DEMANDA (DFD)');
-    
-    addSectionTitle(doc, '1. IDENTIFICAÇÃO DA SOLICITAÇÃO');
-    autoTable(doc, {
-        ...commonAutoTableOptions,
-        startY: yPos,
-        head: [['INFORMAÇÃO', 'DETALHE']],
-        body: [
-            ['Memorando Nº:', `${data.numeroMemo}/${data.ano}`],
-            ['Unidade Destinatária:', data.unidade],
-        ],
-    });
-    yPos = (doc as any).lastAutoTable.finalY + 10;
-    
-    addSectionTitle(doc, '2. CONTEÚDO DA SOLICITAÇÃO');
-    addText(doc, 'Problema a ser Solucionado:', { isBold: true });
-    addText(doc, data.problema, { indent: 5 });
-    yPos += 5;
-    
-    addText(doc, 'Quantitativo Necessário:', { isBold: true });
-    addText(doc, data.quantitativo, { indent: 5 });
-    yPos += 5;
+    // 1. Title
+    doc.setFont(FONT_FAMILY, 'bold');
+    doc.setFontSize(12);
+    doc.text('DOCUMENTO DE FORMALIZAÇÃO DA DEMANDA', PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 15;
 
-    addText(doc, `Prazo Limite para Conclusão: ${new Date(data.prazo + 'T00:00:00').toLocaleDateString('pt-BR')}`, { isBold: true });
-    addText(doc, `Justificativa do Prazo: ${data.justificativaPrazo}`, { indent: 5 });
-    yPos += 10;
-    
-    addSectionTitle(doc, '3. PREVISÃO NO PLANO DE CONTRATAÇÕES ANUAL (PCA)');
-    const pcaStatus = {
-        sim: 'A contratação está prevista no PCA.',
-        nao: 'A contratação não está prevista no PCA.',
-        inexistente: 'Ainda não há PCA aprovado para este exercício.',
-        '': 'Não informado.'
+    // 2. Memo
+    doc.setFont(FONT_FAMILY, 'normal');
+    doc.setFontSize(11);
+    doc.text(`Memorando nº ${data.numeroMemo}/${data.ano}`, MARGIN_LEFT, yPos);
+    yPos += 15;
+
+    // 3. Body
+    doc.text(`À ${data.unidade || '... (unidade de compras do órgão)'},`, MARGIN_LEFT, yPos);
+    yPos += 15;
+
+    const bodyStyle = {
+        align: 'justify' as const,
+        lineHeightFactor: 1.5
     };
-    addText(doc, pcaStatus[data.statusPCA]);
+
+    const p1 = `Solicito que seja providenciada a solução para ${data.problema || '... (expor o problema a ser solucionado)'}.`;
+    let lines = doc.splitTextToSize(p1, USABLE_WIDTH);
+    doc.text(lines, MARGIN_LEFT, yPos, bodyStyle);
+    yPos += lines.length * 5 * bodyStyle.lineHeightFactor;
+    yPos += 5;
+
+    const p2 = `Estimo que o quantitativo necessário é de ${data.quantitativo || '... (indicar a quantidade x periodicidade)'}.`;
+    lines = doc.splitTextToSize(p2, USABLE_WIDTH);
+    doc.text(lines, MARGIN_LEFT, yPos, bodyStyle);
+    yPos += lines.length * 5 * bodyStyle.lineHeightFactor;
+    yPos += 5;
+    
+    const formattedPrazo = data.prazo ? new Date(data.prazo + 'T00:00:00').toLocaleDateString('pt-BR') : '... (indicar prazo para o término do processo de compra)';
+    const p3 = `Informo que a aquisição deve ser feita até ${formattedPrazo}, considerando que ${data.justificativaPrazo || '... (justificar o prazo indicado)'}.`;
+    lines = doc.splitTextToSize(p3, USABLE_WIDTH);
+    doc.text(lines, MARGIN_LEFT, yPos, bodyStyle);
+    yPos += lines.length * 5 * bodyStyle.lineHeightFactor;
     yPos += 10;
 
-    addSignatory(doc, data);
+    doc.text('Por fim, ressalto que:', MARGIN_LEFT, yPos);
+    yPos += 10;
+
+    // 4. Checkboxes
+    const checkboxSize = 4;
+    const checkboxTextIndent = 7;
+    const checkboxOptions = [
+        { key: 'sim', text: 'a contratação pretendida está prevista no Plano de Contratações Anual deste exercício.'},
+        { key: 'nao', text: 'a contratação pretendida não está prevista no Plano de Contratações Anual deste exercício.'},
+        { key: 'inexistente', text: 'ainda não há Plano de Contratações Anual aprovado para este exercício.'},
+    ];
+
+    checkboxOptions.forEach(option => {
+        checkAndAddPage(doc, 15);
+        const isChecked = data.statusPCA === option.key;
+        const textLines = doc.splitTextToSize(option.text, USABLE_WIDTH - checkboxTextIndent);
+        
+        const checkboxY = yPos - checkboxSize + 2;
+        doc.setLineWidth(0.3);
+        doc.rect(MARGIN_LEFT, checkboxY, checkboxSize, checkboxSize);
+        if (isChecked) {
+            doc.setFont(FONT_FAMILY, 'bold');
+            doc.text('X', MARGIN_LEFT + 1, yPos + 1);
+            doc.setFont(FONT_FAMILY, 'normal');
+        }
+
+        doc.text(textLines, MARGIN_LEFT + checkboxTextIndent, yPos);
+        yPos += textLines.length * 5 + 5;
+    });
+    
+    yPos += 20;
+
+    // 5. Signature
+    checkAndAddPage(doc, 40);
+    const date = new Date(data.data + 'T00:00:00');
+    const formattedDate = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+    doc.text(`${data.cidade || 'Cidade'} (PA), ${formattedDate}.`, PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 30;
+
+    doc.text('(Assinatura)', PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 10;
+    doc.setFont(FONT_FAMILY, 'bold');
+    doc.text((data.nome || 'NOME DO SERVIDOR').toUpperCase(), PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 6;
+    doc.setFont(FONT_FAMILY, 'normal');
+    doc.text(`${data.cargo || 'Cargo'} e ${data.funcao || 'função'}`, PAGE_WIDTH / 2, yPos, { align: 'center' });
 };
+
 
 // --- ETP ---
 const generateEtpPdf = (doc: jsPDF, data: EtpData) => {

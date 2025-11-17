@@ -15,7 +15,7 @@ export interface Signatory {
   data: string;
   nome: string;
   cargo: string;
-  matricula: string;
+  funcao: string;
 }
 
 export interface DfdData extends Signatory {
