@@ -43,14 +43,18 @@ export interface EtpQualidadeItem {
 }
 
 export interface EtpData extends Signatory {
+    // Identificação
     numero: string;
     ano: string;
     pae: string;
+    // 1. Necessidade
     necessidade: string;
+    // 2. Mercado
     fontesPesquisa: string[];
     fonteOutro: string;
     justificativaTecnica: string;
     restricaoFornecedores: 'sim' | 'nao' | '';
+    // 3. Requisitos
     tipoObjeto: string[];
     natureza: 'continuada' | 'nao-continuada' | '';
     monopolio: 'sim' | 'nao' | '';
@@ -62,29 +66,53 @@ export interface EtpData extends Signatory {
     transicaoContrato: string;
     transicaoPrazo: string;
     padraoQualidade: EtpQualidadeItem[];
+    // 3.8 Sustentabilidade
     sustentabilidade: string[];
     sustentabilidadeOutro: string;
-    prioridadeLei: string[];
-    prioridadeJust: string;
+    // 3.9 Prioridade
+    prioridadeLeiTipo: 'reciclados' | 'sustentaveis' | 'nao' | '';
+    prioridadeLeiJustificativa: string;
+    // 3.10 Treinamento
     treinamento: 'sim' | 'nao' | '';
+    // 4. Solução
     solucaoContratacao: string;
-    garantiaContratual: string;
+    garantiaContratual: 'nao_ha' | '90_dias' | '12_meses' | 'outro' | '';
     garantiaOutroNum: string;
     garantiaOutroTipo: 'dias' | 'meses' | 'anos';
     assistenciaTecnica: 'sim' | 'nao' | '';
-    assistenciaJust: string;
     manutencao: 'sim' | 'nao' | '';
-    manutencaoDesc: string;
+    // 5. Dimensionamento
     metodoQuantitativo: string[];
     metodoOutro: string;
     descricaoQuantitativo: string;
     itens: EtpItem[];
+    // 6. Estimativa de valor
+    meiosPesquisa: string[];
+    meiosPesquisaOutro: string;
+    // 7. Parcelamento
+    parcelamento: 'sim' | 'nao' | '';
+    motivosNaoParcelamento: string[];
+    motivosNaoParcelamentoOutro: string;
+    // 8. Contratações Correlatas
+    contratacoesCorrelatas: 'sim' | 'nao' | '';
+    contratacoesCorrelatasEspecificar: string;
+    // 9. Alinhamento
+    previsaoPCA: 'sim' | 'nao' | '';
+    itemPCA: string;
+    justificativaPCA: string;
+    // 10. Resultados
+    beneficios: string[];
+    beneficiosOutro: string;
+    // 11. Pendências
+    pendencias: 'sim' | 'nao' | '';
+    pendenciasEspecificar: string;
+    pendenciasResponsaveis: string;
+    // 12. Impactos Ambientais
+    impactoAmbiental: 'sim' | 'nao' | '';
+    impactos: string;
+    medidasMitigacao: string;
+    // 13. Viabilidade
     viabilidade: 'sim' | 'nao' | '';
-    justificativaParcelamento: string;
-    resultadosPretendidos: string;
-    providencias: string;
-    impactosAmbientais: string;
-    contratacoesCorrelatas: string;
 }
 
 export interface RiskItem {

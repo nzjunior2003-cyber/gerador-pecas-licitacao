@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { DocumentType, DfdData, EtpData, RiscoData, OrcamentoData } from './types';
 import { generatePdf } from './services/pdfGenerator';
@@ -53,27 +54,38 @@ const initialEtpState: EtpData = {
   padraoQualidade: [],
   sustentabilidade: [],
   sustentabilidadeOutro: '',
-  prioridadeLei: [],
-  prioridadeJust: '',
+  prioridadeLeiTipo: '',
+  prioridadeLeiJustificativa: '',
   treinamento: '',
   solucaoContratacao: '',
   garantiaContratual: '',
   garantiaOutroNum: '',
   garantiaOutroTipo: 'dias',
   assistenciaTecnica: '',
-  assistenciaJust: '',
   manutencao: '',
-  manutencaoDesc: '',
   metodoQuantitativo: [],
   metodoOutro: '',
   descricaoQuantitativo: '',
   itens: [],
-  viabilidade: '',
-  justificativaParcelamento: '',
-  resultadosPretendidos: '',
-  providencias: '',
-  impactosAmbientais: '',
+  meiosPesquisa: [],
+  meiosPesquisaOutro: '',
+  parcelamento: '',
+  motivosNaoParcelamento: [],
+  motivosNaoParcelamentoOutro: '',
   contratacoesCorrelatas: '',
+  contratacoesCorrelatasEspecificar: '',
+  previsaoPCA: '',
+  itemPCA: '',
+  justificativaPCA: '',
+  beneficios: [],
+  beneficiosOutro: '',
+  pendencias: '',
+  pendenciasEspecificar: '',
+  pendenciasResponsaveis: '',
+  impactoAmbiental: '',
+  impactos: '',
+  medidasMitigacao: '',
+  viabilidade: '',
 };
 
 const initialRiscoState: RiscoData = {
