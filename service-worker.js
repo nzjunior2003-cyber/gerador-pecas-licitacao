@@ -1,14 +1,22 @@
 // service-worker.js
 
-// A versão do cache foi incrementada para v2 para garantir que o service worker seja atualizado.
-const CACHE_NAME = 'gerador-cbmpa-cache-v2';
+// A versão do cache foi incrementada para v3 para garantir que o service worker seja atualizado e as novas dependências sejam cacheadas.
+const CACHE_NAME = 'gerador-cbmpa-cache-v3';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/index.tsx', // O módulo principal da aplicação
   '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  '/icons/icon-512x512.png',
+  // Adicionando dependências externas da CDN para garantir o funcionamento offline.
+  // Sem isso, o app não carrega quando aberto pelo atalho sem conexão com a internet.
+  'https://cdn.tailwindcss.com',
+  'https://aistudiocdn.com/react@^19.2.0',
+  'https://aistudiocdn.com/react-dom@^19.2.0/client',
+  'https://aistudiocdn.com/@google/genai',
+  'https://aistudiocdn.com/jspdf@^3.0.3',
+  'https://aistudiocdn.com/jspdf-autotable@^5.0.2'
 ];
 
 // No evento de instalação, pré-carrega os arquivos essenciais do "app shell".
