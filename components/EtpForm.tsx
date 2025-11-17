@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { EtpData, EtpItem, EtpQualidadeItem } from '../types';
 
@@ -15,9 +14,35 @@ const cargoOptions = [
     'TCEL QOBM', 'CEL QOBM', 'CEL QOCBM', 'CEL QOSBM'
 ];
 
-const Section: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => (
+const Help: React.FC<{ instruction: string }> = ({ instruction }) => {
+  const [show, setShow] = React.useState(false);
+  return (
+    <div className="relative inline-block ml-2" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      <button
+        type="button"
+        className="text-gray-400 hover:text-cbmpa-red focus:outline-none"
+        aria-label="Ajuda"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+        </svg>
+      </button>
+      {show && (
+        <div className="absolute z-10 bottom-full right-0 mb-2 w-80 p-3 text-sm font-normal text-left text-gray-600 bg-white border border-gray-200 rounded-lg shadow-xl dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Instrução de Preenchimento</h3>
+          {instruction}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Section: React.FC<{ title: string, children: React.ReactNode, instruction?: string }> = ({ title, children, instruction }) => (
     <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6 dark:bg-gray-700/50 dark:border-gray-600">
-        <h2 className="text-xl font-bold text-cbmpa-red mb-4 pb-2 border-b-2 border-cbmpa-red">{title}</h2>
+        <div className="flex justify-between items-center mb-4 pb-2 border-b-2 border-cbmpa-red">
+            <h2 className="text-xl font-bold text-cbmpa-red">{title}</h2>
+            {instruction && <Help instruction={instruction} />}
+        </div>
         {children}
     </div>
 );
@@ -113,13 +138,13 @@ export const EtpForm: React.FC<EtpFormProps> = ({ data, setData }) => {
         </div>
       </Section>
       
-      <Section title="1 – DESCRIÇÃO DA NECESSIDADE">
+      <Section title="1 – DESCRIÇÃO DA NECESSIDADE" instruction="Descrever a necessidade da contratação do bem ou serviço, a partir da identificação do que o órgão realmente precisa, considerando o problema exposto no documento de formalização de demanda.">
         <Field label="1.1. Qual a necessidade a ser atendida?" required>
           <textarea name="necessidade" value={data.necessidade} onChange={handleChange} required className={`${inputClasses} h-24`} />
         </Field>
       </Section>
 
-      <Section title="2 – LEVANTAMENTO DE MERCADO">
+      <Section title="2 – LEVANTAMENTO DE MERCADO" instruction="Registrar os meios utilizados na pesquisa para levantar as soluções possíveis para o problema. Na justificativa técnica e econômica para a escolha da solução, deve-se informar o levantamento de mercado realizado com a análise das soluções possíveis, concluindo com a indicação daquela considerada mais viável para atender a necessidade da administração pública. Além disso, caso seja possível adquirir ou alugar o bem, deve-se traçar comparativo de custos e benefícios de cada opção, com indicação da alternativa mais vantajosa. Após o levantamento, caso se verifique que a quantidade de fornecedores é restrita, deve-se refletir se os requisitos que limitaram a competição são indispensáveis para a boa execução do contrato ou segurança da administração pública. Se não forem, devem ser flexibilizados.">
         <Field label="2.1. Onde foram pesquisadas as possíveis soluções?" required>
             {['Consulta a fornecedores', 'Internet', 'Contratações similares', 'Audiência pública', 'Outro'].map(val => (
                 <div key={val} className="flex items-center"><input type="checkbox" name="fontesPesquisa" value={val} checked={data.fontesPesquisa.includes(val)} onChange={handleCheckboxChange} className="mr-2"/><label className="dark:text-gray-300">{val}</label></div>
@@ -130,7 +155,7 @@ export const EtpForm: React.FC<EtpFormProps> = ({ data, setData }) => {
         <Field label="2.3. Há restrição de fornecedores?" required><RadioGroup name="restricaoFornecedores" value={data.restricaoFornecedores} options={[{val: 'sim', label: 'Sim'}, {val: 'nao', label: 'Não'}]} onChange={handleChange} /></Field>
       </Section>
 
-      <Section title="3 – DESCRIÇÃO DOS REQUISITOS DE CONTRATAÇÃO">
+      <Section title="3 – DESCRIÇÃO DOS REQUISITOS DE CONTRATAÇÃO" instruction="Indicar os requisitos que o objeto ou serviço a ser contratado deverá atender. No padrão mínimo de qualidade, devem ser descritos os elementos, definições e configurações aptos a suprir a demanda da Administração. Deve-se dar prioridade à contratação de produtos, bens, serviços e obras sustentáveis, conforme Lei nº 12.305/2010, e adotar os critérios de sustentabilidade previstos no Decreto Estadual nº 4.193/2024. Atenção: a impossibilidade de adoção de critérios de sustentabilidade deve ser comprovada e justificada pelo gestor, mediante fundamentação técnica e mercadológica.">
         <Field label="3.1 - Qual o tipo de objeto?" required>
             <div className="flex flex-col gap-y-2">
                 {[
@@ -168,7 +193,7 @@ export const EtpForm: React.FC<EtpFormProps> = ({ data, setData }) => {
         <Field label="3.10. Há necessidade de treinamento?"><RadioGroup name="treinamento" value={data.treinamento} options={[{val: 'sim', label: 'Sim'}, {val: 'nao', label: 'Não'}]} onChange={handleChange} /></Field>
       </Section>
 
-      <Section title="4 – DESCRIÇÃO DA SOLUÇÃO">
+      <Section title="4 – DESCRIÇÃO DA SOLUÇÃO" instruction="Indicar o conjunto de todos os elementos (bens, serviços e outros) necessários para, de forma integrada, gerar os resultados que atendam à necessidade que gerou a contratação, bem como informar necessidades relacionadas à manutenção, assistência técnica e garantia, quando for o caso.">
          <Field label="4.1. O que será contratado?"><textarea name="solucaoContratacao" value={data.solucaoContratacao} onChange={handleChange} className={`${inputClasses} h-24`}/></Field>
          <Field label="4.2. Qual o prazo da garantia contratual?">
             <RadioGroup name="garantiaContratual" value={data.garantiaContratual} options={[{val: 'nao_ha', label: 'Não há.'}, {val: '90_dias', label: '90 dias.'}, {val: '12_meses', label: '12 meses.'}, {val: 'outro', label: 'Outro:'}]} onChange={handleChange} />
@@ -178,7 +203,7 @@ export const EtpForm: React.FC<EtpFormProps> = ({ data, setData }) => {
          <Field label="4.4. Há necessidade de manutenção?"><RadioGroup name="manutencao" value={data.manutencao} options={[{val: 'sim', label: 'Sim'}, {val: 'nao', label: 'Não'}]} onChange={handleChange} /></Field>
        </Section>
 
-      <Section title="5 – DIMENSIONAMENTO DO OBJETO">
+      <Section title="5 – DIMENSIONAMENTO DO OBJETO" instruction="O quantitativo deve ser justificado a partir de uma estimativa, que pode levar em conta a série histórica, levantamento atual ou o planejamento para evento futuro, com especificação da metodologia adotada. Na descrição do quantitativo, deve constar a memória de cálculo para estimativa com base na metodologia utilizada, indicando eventuais inconsistências no dimensionamento, como objeto insuficiente ou excessivo.">
         <Field label="5.1. Como se obteve o quantitativo estimado?">
             <div className="flex flex-col gap-y-2">
                 {['Análise de contratações anteriores.', 'Levantamento atual.', 'Análise de contratações similares.', 'Outro.'].map(opt => (
@@ -191,7 +216,7 @@ export const EtpForm: React.FC<EtpFormProps> = ({ data, setData }) => {
         <div className="mt-4"><h3 className="text-gray-700 dark:text-gray-300 font-semibold mb-2">5.3. Especificação</h3>{data.itens.map((item, index) => (<div key={item.id} className="p-4 border rounded-md mb-2 bg-white dark:bg-gray-800 dark:border-gray-600"><div className="flex justify-between items-center mb-2"><h4 className="font-semibold dark:text-gray-200">Item {index + 1}</h4><button onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700 font-bold">Remover</button></div><Field label="Descrição" required><textarea value={item.descricao} onChange={e => handleItemChange(item.id, 'descricao', e.target.value)} required className={`${inputClasses} h-20`}/></Field><div className="grid md:grid-cols-3 gap-4"><Field label="Unidade" required><input type="text" value={item.unidade} onChange={e => handleItemChange(item.id, 'unidade', e.target.value)} required className={inputClasses}/></Field><Field label="Quantidade" required><input type="number" value={item.quantidade} onChange={e => handleItemChange(item.id, 'quantidade', parseFloat(e.target.value) || 0)} required className={inputClasses}/></Field><Field label="Valor Unitário (R$)" required><input type="number" value={item.valorUnitario} onChange={e => handleItemChange(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)} required className={inputClasses}/></Field></div></div>))}<button onClick={addItem} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition mt-2">➕ Adicionar Item</button></div>
       </Section>
       
-      <Section title="6 – ESTIMATIVA DO VALOR DA CONTRATAÇÃO">
+      <Section title="6 – ESTIMATIVA DO VALOR DA CONTRATAÇÃO" instruction="Não se trata de uma pesquisa mercadológica propriamente dita, mas sim uma simples estimativa do valor da contratação, a partir de uma pesquisa com os dados disponíveis ao público.">
         <Field label="6.1 - Meios usados na pesquisa">
              <div className="flex flex-col gap-y-2">
                 {['Painel de preços.', 'Contratações similares.', 'Simas.', 'Fornecedores.', 'Internet.', 'Outro.'].map(opt => (
@@ -203,7 +228,7 @@ export const EtpForm: React.FC<EtpFormProps> = ({ data, setData }) => {
         <Field label="6.2. Estimativa de Preço"><div className="overflow-x-auto border rounded-lg dark:border-gray-600"><table className="w-full text-sm text-left text-gray-600 dark:text-gray-400"><thead className="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-300"><tr><th scope="col" className="px-4 py-3">Item</th><th scope="col" className="px-4 py-3">Descrição</th><th scope="col" className="px-4 py-3 text-right">Valor Unit.</th><th scope="col" className="px-4 py-3 text-center">Qtd</th><th scope="col" className="px-4 py-3 text-right">Valor Total</th></tr></thead><tbody>{data.itens.length > 0 ? data.itens.map((item, index) => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700"><th scope="row" className="px-4 py-2 font-medium text-gray-900 dark:text-white whitespace-nowrap">{index + 1}</th><td className="px-4 py-2">{item.descricao}</td><td className="px-4 py-2 text-right">{item.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="px-4 py-2 text-center">{item.quantidade}</td><td className="px-4 py-2 text-right">{(item.quantidade * item.valorUnitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>)) : (<tr className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"><td colSpan={5} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">Nenhum item adicionado.</td></tr>)}</tbody><tfoot><tr className="font-bold text-gray-900 bg-gray-100 dark:bg-gray-700 dark:text-white"><th scope="row" colSpan={4} className="px-4 py-3 text-base text-right">VALOR TOTAL ESTIMADO</th><td className="px-4 py-3 text-base text-right">{totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr></tfoot></table></div></Field>
       </Section>
 
-      <Section title="7 – JUSTIFICATIVA PARA O PARCELAMENTO DA SOLUÇÃO">
+      <Section title="7 – JUSTIFICATIVA PARA O PARCELAMENTO DA SOLUÇÃO" instruction="O parcelamento é a regra. Dessa forma, quando não for adotado o parcelamento, deve-se justificar por não ser tecnicamente viável, economicamente vantajoso ou outro motivo que o impossibilite.">
           <Field label="7.1 - A solução será dividida em itens?"><RadioGroup name="parcelamento" value={data.parcelamento} options={[{val: 'sim', label: 'Sim.'}, {val: 'nao', label: 'Não.'}]} onChange={handleChange} /></Field>
           {data.parcelamento === 'nao' && <Field label="Por quê?"><div className="flex flex-col gap-y-2">
             {['Objeto indivisível.', 'Perda de escala.', 'Tecnicamente inviável.', 'Economicamente inviável.', 'Aproveitamento da competitividade.', 'Outro.'].map(opt => (
@@ -213,18 +238,18 @@ export const EtpForm: React.FC<EtpFormProps> = ({ data, setData }) => {
           </div></Field>}
       </Section>
       
-      <Section title="8 – CONTRATAÇÕES CORRELATAS OU INTERDEPENDENTES">
+      <Section title="8 – CONTRATAÇÕES CORRELATAS OU INTERDEPENDENTES" instruction="Indicar se existe no órgão contratações com objetos semelhantes ou relacionados ao que se está querendo contratar, indicando o número do PAE e do contrato administrativo, com especificação do objeto correlato/interdependente.">
           <Field label="8.1 - Há contratações correlatas ou interdependentes?"><RadioGroup name="contratacoesCorrelatas" value={data.contratacoesCorrelatas} options={[{val: 'sim', label: 'Sim.'}, {val: 'nao', label: 'Não.'}]} onChange={handleChange} /></Field>
           {data.contratacoesCorrelatas === 'sim' && <Field label="Especificar"><textarea name="contratacoesCorrelatasEspecificar" value={data.contratacoesCorrelatasEspecificar} onChange={handleChange} className={`${inputClasses} h-20`}/></Field>}
       </Section>
       
-      <Section title="9 – ALINHAMENTO DA CONTRATAÇÃO COM O PLANEJAMENTO">
+      <Section title="9 – ALINHAMENTO DA CONTRATAÇÃO COM O PLANEJAMENTO" instruction="Caso não haja previsão no plano de contratações anual(PCA), deve-se justificar a ausência; pode-se indicar, por exemplo, a previsão da contratação em outro documento de planejamento ou programa. É possível, ainda, sugerir a inclusão no próximo plano de contratações anuais, se cabível. Para tanto, deve-se dar ciência ao setor responsável pelo plano de contratações anual.">
           <Field label="9.1 - Há previsão no plano de contratações anual?"><RadioGroup name="previsaoPCA" value={data.previsaoPCA} options={[{val: 'sim', label: 'Sim.'}, {val: 'nao', label: 'Não.'}]} onChange={handleChange} /></Field>
           {data.previsaoPCA === 'sim' && <Field label="Especificar item do PCA:"><input type="text" name="itemPCA" value={data.itemPCA} onChange={handleChange} className={inputClasses}/></Field>}
           {data.previsaoPCA === 'nao' && <Field label="Justificativa e providências:"><textarea name="justificativaPCA" value={data.justificativaPCA} onChange={handleChange} className={`${inputClasses} h-20`}/></Field>}
       </Section>
       
-      <Section title="10 – RESULTADOS PRETENDIDOS">
+      <Section title="10 – RESULTADOS PRETENDIDOS" instruction="Indicar ao menos um benefício como resultado da contratação.">
           <Field label="10.1 - Quais os benefícios pretendidos na contratação?">
             <div className="flex flex-col gap-y-2">
                 {['Manutenção do Funcionamento Administrativo', 'Redução de Custos', 'Aproveitamento de Recursos Humanos', 'Redução dos Riscos do Trabalho', 'Ganho de Eficiência', 'Serviço/Bem de Consumo', 'Realização de Política Pública', 'Outro.'].map(opt => (
@@ -235,13 +260,13 @@ export const EtpForm: React.FC<EtpFormProps> = ({ data, setData }) => {
           </Field>
       </Section>
       
-      <Section title="11 – PENDÊNCIAS RELATIVAS À CONTRATAÇÃO">
+      <Section title="11 – PENDÊNCIAS RELATIVAS À CONTRATAÇÃO" instruction="Caso a contratação dependa de outras ações ou programas, deve-se apresentar cronograma de providências a serem adotadas antes e durante o contrato para assegurar o êxito de seu resultado, como capacitação de servidores, adequação do espaço físico etc.">
           <Field label="11.1 - Há providências pendentes para o sucesso da contratação?"><RadioGroup name="pendencias" value={data.pendencias} options={[{val: 'sim', label: 'Sim.'}, {val: 'nao', label: 'Não.'}]} onChange={handleChange} /></Field>
           {data.pendencias === 'sim' && <Field label="Especificar:"><textarea name="pendenciasEspecificar" value={data.pendenciasEspecificar} onChange={handleChange} className={`${inputClasses} h-20`}/></Field>}
           <Field label="11.2 - Quais são os setores responsáveis pelas providências pendentes?"><textarea name="pendenciasResponsaveis" value={data.pendenciasResponsaveis} onChange={handleChange} className={`${inputClasses} h-20`}/></Field>
       </Section>
 
-      <Section title="12 – IMPACTOS AMBIENTAIS E MEDIDAS DE MITIGAÇÃO">
+      <Section title="12 – IMPACTOS AMBIENTAIS E MEDIDAS DE MITIGAÇÃO" instruction="Se a execução do contrato gerar impactos ambientais, eles devem ser indicados no quadro vermelho. Nessa hipótese, também devem ser especificadas, no quadro azul, as medidas que eliminem ou reduzam esses impactos.">
           <Field label="12.1 - Há previsão de impacto ambiental na contratação?"><RadioGroup name="impactoAmbiental" value={data.impactoAmbiental} options={[{val: 'sim', label: 'Sim.'}, {val: 'nao', label: 'Não.'}]} onChange={handleChange} /></Field>
           {data.impactoAmbiental === 'sim' && <div className='space-y-4'>
             <Field label="Impactos:"><textarea name="impactos" value={data.impactos} onChange={handleChange} className={`${inputClasses} h-20`}/></Field>
