@@ -205,8 +205,6 @@ function App() {
   const [riscoData, setRiscoData, undoRisco, canUndoRisco, resetRiscoData] = useFormWithHistory<RiscoData>(initialRiscoState);
   const [orcamentoData, setOrcamentoData, undoOrcamento, canUndoOrcamento, resetOrcamentoData] = useFormWithHistory<OrcamentoData>(initialOrcamentoState);
   const [isLoading, setIsLoading] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
-  const [isStandalone, setIsStandalone] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
 
   useEffect(() => {
@@ -218,45 +216,6 @@ function App() {
     }
   }, [toast]);
   
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-        e.preventDefault();
-        setInstallPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    const handleAppInstalled = () => {
-        setInstallPrompt(null);
-    };
-
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsStandalone(true);
-    }
-
-    return () => {
-        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!installPrompt) {
-        return;
-    }
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === 'accepted') {
-        console.log('User accepted the A2HS prompt');
-    } else {
-        console.log('User dismissed the A2HS prompt');
-    }
-    setInstallPrompt(null);
-  };
-
-
   const { undo, canUndo } = useMemo(() => {
     switch (docType) {
         case DocumentType.DFD: return { undo: undoDfd, canUndo: canUndoDfd };
@@ -375,20 +334,6 @@ function App() {
         <header className="bg-gradient-to-r from-cbmpa-red to-cbmpa-purple text-white p-6 sm:p-8 text-center relative">
           <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-shadow">🔥 GERADOR DE DOCUMENTOS CBMPA 🔥</h1>
           <p className="text-sm sm:text-base opacity-90">Sistema de Elaboração de Documentos de Contratação</p>
-          {!isStandalone && (
-              <button
-                  onClick={handleInstallClick}
-                  disabled={!installPrompt}
-                  className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-100 text-cbmpa-red font-bold py-2 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
-                  aria-label="Instalar Aplicativo"
-                  title={installPrompt ? "Instalar o aplicativo no seu dispositivo" : "A opção de instalar aparecerá assim que estiver disponível"}
-              >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  <span className="hidden sm:inline">Instalar App</span>
-              </button>
-          )}
         </header>
 
         <main className="p-4 sm:p-8">
