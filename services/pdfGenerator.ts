@@ -3,7 +3,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DocumentType, DfdData, EtpData, RiscoData, OrcamentoData, OrcamentoItemGroup, EtpItem, RiskItem, EtpQualidadeItem } from '../types';
 
-// --- INSTRUÇÕES PARA ADICIONAR A FONTE MONTSERRAT ---
+// --- INSTRUÇÕES PARA ADICONAR A FONTE MONTSERRAT ---
 // 1. Obtenha os arquivos .ttf da fonte Montserrat (ex: Montserrat-Regular.ttf e Montserrat-Bold.ttf).
 // 2. Converta cada arquivo .ttf para uma string Base64. Você pode usar uma ferramenta online.
 // 3. Cole a string Base64 resultante nas variáveis correspondentes abaixo.
@@ -264,8 +264,8 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
     
     const tableOptions = {
         theme: 'grid' as const,
-        styles: { font: FONT_FAMILY, fontSize: 10, cellPadding: 1.5, lineColor: ETP_TABLE_BORDER_GRAY, lineWidth: 0.2, valign: 'middle' as const },
-        columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' as const, fontSize: 10, fillColor: ETP_QUESTION_BG_GRAY, halign: 'right' as const, cellPadding: { right: 4 } }, 1: { halign: 'justify' as const } },
+        styles: { font: FONT_FAMILY, fontSize: 8, cellPadding: 1.5, lineColor: ETP_TABLE_BORDER_GRAY, lineWidth: 0.2, valign: 'middle' as const },
+        columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' as const, fontSize: 8, fillColor: ETP_QUESTION_BG_GRAY, halign: 'left' as const, cellPadding: { left: 4 } }, 1: { halign: 'justify' as const } },
         margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
         didDrawPage: (hookData: any) => { yPos = hookData.cursor?.y || yPos; },
         willDrawCell: (hookData: any) => {
@@ -295,6 +295,7 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
                         tableWidth: cell.width - 4,
                     });
                 } else if (raw.type === 'impactMitigation') {
+                    tableDoc.setFontSize(8);
                     const splitY = cell.y + cell.height / 2;
                     const textWidth = cell.width - 8;
                     tableDoc.setFillColor(ETP_IMPACT_BOX_RED);
@@ -315,9 +316,10 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
                 }
             }
             if (optionsData) {
+                tableDoc.setFontSize(8);
                 const options = optionsData.options;
                 let cursorY = cell.y + 4; 
-                const lineHeight = 5;
+                const lineHeight = 4;
                 const checkboxSize = 3;
                 const checkboxTextGap = 2;
                 const startX = cell.x + 3;
@@ -417,7 +419,7 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
         ['3.4 - QUAL A VIGÊNCIA?', { content: vigenciaAnswer, styles: { halign: 'left' } }],
         ['3.5 - PODERÁ HAVER PRORROGAÇÃO?', { content: prorrogacaoAnswer, styles: { halign: 'left' } }],
         ['3.6 - HÁ TRANSIÇÃO COM CONTRATO ANTERIOR?', { content: transicaoAnswer, styles: { halign: 'left' } }],
-        ['3.7 - PADRÃO MÍNIMO DE QUALIDADE', { type: 'nestedTable', options: { head: [['Item', 'Descrição detalhada']], body: data.padraoQualidade.length > 0 ? data.padraoQualidade.map((item, index) => [index + 1, item.descricao]) : [['1','']], theme: 'grid', styles: { font: FONT_FAMILY, fontSize: 9, cellPadding: 1.5, lineColor: ETP_TABLE_BORDER_GRAY, lineWidth: 0.2 }, headStyles: { fillColor: ETP_TABLE_HEADER_LIGHT_BLUE, textColor: ETP_TEXT_BLACK, fontStyle: 'bold', halign: 'center' }, columnStyles: { 0: { cellWidth: 20, halign: 'center' }, 1: { cellWidth: 'auto', halign: 'justify' } } } }],
+        ['3.7 - PADRÃO MÍNIMO DE QUALIDADE', { type: 'nestedTable', options: { head: [['Item', 'Descrição detalhada']], body: data.padraoQualidade.length > 0 ? data.padraoQualidade.map((item, index) => [index + 1, item.descricao]) : [['1','']], theme: 'grid', styles: { font: FONT_FAMILY, fontSize: 8, cellPadding: 1.5, lineColor: ETP_TABLE_BORDER_GRAY, lineWidth: 0.2 }, headStyles: { fillColor: ETP_TABLE_HEADER_LIGHT_BLUE, textColor: ETP_TEXT_BLACK, fontStyle: 'bold', halign: 'center' }, columnStyles: { 0: { cellWidth: 20, halign: 'center' }, 1: { cellWidth: 'auto', halign: 'justify' } } } }],
         ['3.8 - QUAIS CRITÉRIOS DE SUSTENTABILIDADE?', { content: sustentabilidadeAnswer, styles: { halign: 'left' }}],
         ['3.9 - HÁ PRIORIDADE PARA AQUISIÇÃO OU CONTRATAÇÃO, CONFORME LEI Nº 12.035/2010?', { content: prioridadeAnswer, styles: { halign: 'left' }}],
         ['3.10 - HÁ NECESSIDADE DE TREINAMENTO?', { content: treinamentoAnswer, styles: { halign: 'left' } }],
@@ -451,7 +453,7 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
     autoTable(doc, { ...tableOptions, startY: yPos, body: [
         ['5.1 - COMO SE OBTEVE O QUANTITATIVO ESTIMADO?', { content: metodoAnswer, styles: { halign: 'left' } }],
         ['5.2 - DESCRIÇÃO DO QUANTITATIVO', data.descricaoQuantitativo || 'Não informado.'],
-        ['5.3 - ESPECIFICAÇÃO', { type: 'nestedTable', options: { head: [['Item', 'Descrição', 'Und', 'Qtd']], body: data.itens.length > 0 ? data.itens.map((item, index) => [index + 1, item.descricao, item.unidade, item.quantidade]) : [['1','','','']], theme: 'grid', styles: { font: FONT_FAMILY, fontSize: 9, cellPadding: 1.5, lineColor: ETP_TABLE_BORDER_GRAY, lineWidth: 0.2 }, headStyles: { fillColor: ETP_TABLE_HEADER_LIGHT_BLUE, textColor: ETP_TEXT_BLACK, fontStyle: 'bold', halign: 'center' }, columnStyles: { 0: { cellWidth: 15, halign: 'center' }, 1: { cellWidth: 'auto', halign: 'justify' }, 2: { cellWidth: 20, halign: 'center' }, 3: { cellWidth: 20, halign: 'center' } } } }],
+        ['5.3 - ESPECIFICAÇÃO', { type: 'nestedTable', options: { head: [['Item', 'Descrição', 'Und', 'Qtd']], body: data.itens.length > 0 ? data.itens.map((item, index) => [index + 1, item.descricao, item.unidade, item.quantidade]) : [['1','','','']], theme: 'grid', styles: { font: FONT_FAMILY, fontSize: 8, cellPadding: 1.5, lineColor: ETP_TABLE_BORDER_GRAY, lineWidth: 0.2 }, headStyles: { fillColor: ETP_TABLE_HEADER_LIGHT_BLUE, textColor: ETP_TEXT_BLACK, fontStyle: 'bold', halign: 'center' }, columnStyles: { 0: { cellWidth: 15, halign: 'center' }, 1: { cellWidth: 'auto', halign: 'justify' }, 2: { cellWidth: 20, halign: 'center' }, 3: { cellWidth: 20, halign: 'center' } } } }],
         ['5.4 - EM CASO DE BEM IMÓVEL...', 'Item prejudicado, não se trata de imóvel.'],
         ['5.5 - EM CASO DE BEM IMÓVEL...', 'Item prejudicado, não se trata de aquisição ou locação de imóvel.'],
     ]});
@@ -469,7 +471,7 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
     })};
     autoTable(doc, { ...tableOptions, startY: yPos, body: [
         ['6.1 - MEIOS USADOS NA PESQUISA', { content: meiosAnswer, styles: { halign: 'left' } }],
-        ['6.2 - ESTIMATIVA DE PREÇO', { type: 'nestedTable', options: { head: [['Item', 'Descrição', 'Valor Unitário', 'Qtd', 'Valor Total']], body: data.itens.length > 0 ? data.itens.map((item, index) => [index + 1, item.descricao, item.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), item.quantidade, (item.quantidade * item.valorUnitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) ]) : [['1','','R$ 0,00','','R$ 0,00']], foot: [['', 'TOTAL', '', '', totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]], theme: 'grid', styles: { font: FONT_FAMILY, fontSize: 9, cellPadding: 1.5, lineColor: ETP_TABLE_BORDER_GRAY, lineWidth: 0.2 }, headStyles: { fillColor: ETP_PRICE_TABLE_HEADER_YELLOW, textColor: ETP_TEXT_BLACK, fontStyle: 'bold', halign: 'center' }, footStyles: { fillColor: ETP_PRICE_TABLE_HEADER_YELLOW, textColor: ETP_TEXT_BLACK, fontStyle: 'bold', halign: 'right' }, columnStyles: { 0: { cellWidth: 15, halign: 'center' }, 1: { cellWidth: 'auto', halign: 'justify' }, 2: { cellWidth: 30, halign: 'right' }, 3: { cellWidth: 20, halign: 'center' }, 4: {cellWidth: 30, halign: 'right'}} } }],
+        ['6.2 - ESTIMATIVA DE PREÇO', { type: 'nestedTable', options: { head: [['Item', 'Descrição', 'Valor Unitário', 'Qtd', 'Valor Total']], body: data.itens.length > 0 ? data.itens.map((item, index) => [index + 1, item.descricao, item.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), item.quantidade, (item.quantidade * item.valorUnitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) ]) : [['1','','R$ 0,00','','R$ 0,00']], foot: [['', 'TOTAL', '', '', totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]], theme: 'grid', styles: { font: FONT_FAMILY, fontSize: 8, cellPadding: 1.5, lineColor: ETP_TABLE_BORDER_GRAY, lineWidth: 0.2 }, headStyles: { fillColor: ETP_PRICE_TABLE_HEADER_YELLOW, textColor: ETP_TEXT_BLACK, fontStyle: 'bold', halign: 'center' }, footStyles: { fillColor: ETP_PRICE_TABLE_HEADER_YELLOW, textColor: ETP_TEXT_BLACK, fontStyle: 'bold', halign: 'right' }, columnStyles: { 0: { cellWidth: 15, halign: 'center' }, 1: { cellWidth: 'auto', halign: 'justify' }, 2: { cellWidth: 30, halign: 'right' }, 3: { cellWidth: 20, halign: 'center' }, 4: {cellWidth: 30, halign: 'right'}} } }],
     ]});
     yPos = (doc as any).lastAutoTable.finalY;
 
@@ -544,13 +546,26 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
     autoTable(doc, { ...tableOptions, startY: yPos, body: [[ '13.1 - A CONTRATAÇÃO POSSUI VIABILIDADE TÉCNICA, SOCIOECONÔMICA E AMBIENTAL?', { content: viabilidadeAnswer, styles: { fillColor: ETP_VIABILITY_BOX_YELLOW }} ]]});
     yPos = (doc as any).lastAutoTable.finalY;
     
-    checkAndAddPage(doc, 50);
-    const date = new Date(data.data + 'T00:00:00');
-    const formattedDate = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+    checkAndAddPage(doc, 60); // Aumentado para segurança
+    
+    // Formatação de data robusta para evitar erros com datas vazias/inválidas
+    let formattedDate = 'Data não informada';
+    if (data.data) {
+        try {
+            // Adiciona T00:00:00 para evitar problemas de fuso horário com datas YYYY-MM-DD
+            const date = new Date(data.data + 'T00:00:00');
+            if (!isNaN(date.getTime())) { // Verifica se a data é válida
+                formattedDate = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+            }
+        } catch (e) {
+            console.error("Erro ao formatar data:", data.data, e);
+        }
+    }
+
     yPos += 15;
     doc.setFontSize(10);
     doc.setFont(FONT_FAMILY, 'normal');
-    doc.text(`${data.cidade} (PA), ${formattedDate}.`, PAGE_WIDTH / 2, yPos, { align: 'center' });
+    doc.text(`${data.cidade || 'Cidade'} (PA), ${formattedDate}.`, PAGE_WIDTH / 2, yPos, { align: 'center' });
     yPos += 20;
     doc.text('(Assinatura)', PAGE_WIDTH / 2, yPos, { align: 'center' });
     yPos += 10;
@@ -558,7 +573,8 @@ const generateEtpPdf = (doc: jsPDF, data: EtpData) => {
     doc.text((data.nome || 'NOME DO SERVIDOR').toUpperCase(), PAGE_WIDTH / 2, yPos, { align: 'center' });
     yPos += 5;
     doc.setFont(FONT_FAMILY, 'normal');
-    doc.text('Cargo e matrícula', PAGE_WIDTH / 2, yPos, { align: 'center' });
+    // CORREÇÃO: Exibe o cargo e função dos dados do formulário em vez do texto fixo "Cargo e matrícula".
+    doc.text(`${data.cargo || 'Cargo'} e ${data.funcao || 'Função'}`, PAGE_WIDTH / 2, yPos, { align: 'center' });
 };
 
 
