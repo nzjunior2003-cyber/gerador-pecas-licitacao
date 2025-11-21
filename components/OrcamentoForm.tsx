@@ -1,5 +1,6 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
-import { OrcamentoData, OrcamentoItemGroup, OrcamentoPrice } from '../types';
+import { OrcamentoData, OrcamentoItemGroup, OrcamentoPrice, OrcamentoFornecedor } from '../types';
 import { AiAssistant } from './AiAssistant';
 
 interface OrcamentoFormProps {
@@ -115,9 +116,23 @@ const estadosBrasileiros = [
     { sigla: 'TO', nome: 'Tocantins' },
 ];
 
+const orcamentoCargoOptions = [
+    'Vol. Civil',
+    'SD QBM', 'CB QBM', '3° SGT QBM', '2° SGT QBM', '1° SGT QBM', 'ST QBM',
+    '2° TEN QOBM', '2° TEN QOABM', '1° TEN QOBM', '1° TEN QOABM',
+    'CAP QOBM', 'CAP QOABM', 'MAJ QOBM', 'MAJ QOABM',
+    'TEN CEL QOBM', 'TEN CEL QOCBM', 'TEN CEL QOSBM',
+    'CEL QOCBM', 'CEL QOSBM', 'CEL QOBM'
+];
+
 export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [loteInputValue, setLoteInputValue] = useState('');
+  
+  // State for new supplier inputs
+  const [newFornecedorNome, setNewFornecedorNome] = useState('');
+  const [newFornecedorJustificativa, setNewFornecedorJustificativa] = useState('');
+
   const inputClasses = "w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400";
 
   // Effect for Price Calculation
@@ -394,8 +409,40 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
       });
       return { lotes, ungrouped, sortedLoteIds };
   }, [data.itemGroups]);
+  
+  const handleAddFornecedor = () => {
+    if (newFornecedorNome && newFornecedorJustificativa) {
+        const newFornecedor: OrcamentoFornecedor = {
+            id: Date.now().toString(),
+            nome: newFornecedorNome,
+            justificativa: newFornecedorJustificativa,
+            requisitos: ''
+        };
+        setData(prev => ({
+            ...prev,
+            fornecedoresDiretos: [...prev.fornecedoresDiretos, newFornecedor]
+        }));
+        setNewFornecedorNome('');
+        setNewFornecedorJustificativa('');
+    }
+  };
+
+  const handleRemoveFornecedor = (id: string) => {
+    setData(prev => ({
+        ...prev,
+        fornecedoresDiretos: prev.fornecedoresDiretos.filter(f => f.id !== id)
+    }));
+  };
+
+  const handleFornecedorRequisitoChange = (id: string, value: 'sim' | 'nao' | '') => {
+      setData(prev => ({
+          ...prev,
+          fornecedoresDiretos: prev.fornecedoresDiretos.map(f => f.id === id ? { ...f, requisitos: value } : f)
+      }));
+  };
 
   const showLoteControls = data.tipoOrcamento !== 'adesao_ata';
+  const isExclusiveDireta = data.fontesPesquisa.length === 1 && data.fontesPesquisa.includes('direta');
 
   return (
     <div className="space-y-6">
@@ -520,9 +567,10 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
                 </div>
             ))}
           </div>
-          {data.fontesPesquisa.length === 1 && data.fontesPesquisa.includes('direta') && (
-            <div className="mt-6 space-y-4">
-                <Field label="Justificativa da Ausência de Pesquisa de Preço no SIMAS, PNCP ou em Contratações Similares">
+          {isExclusiveDireta && (
+            <div className="mt-6 space-y-4 bg-gray-100 dark:bg-gray-700 p-4 rounded-md">
+                <h3 className="font-bold text-gray-800 dark:text-white border-b pb-2 mb-2">Detalhamento da Pesquisa Direta</h3>
+                <Field label="Justificativa da Ausência de Pesquisa de Preço no SIMAS, PNCP ou em Contratações Similares" note="Obrigatório se 'Pesquisa Direta' for a única fonte.">
                     <textarea name="justificativaAusenciaFonte" value={data.justificativaAusenciaFonte} onChange={handleChange} className={`${inputClasses} h-24`}
                     placeholder="(Caso não tenha sido realizada a pesquisa de preço em uma dessas fontes, justifique aqui)."/>
                 </Field>
@@ -530,6 +578,38 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
                     <textarea name="justificativaPesquisaDireta" value={data.justificativaPesquisaDireta} onChange={handleChange} className={`${inputClasses} h-24`}
                     placeholder="(Justificar o motivo de ter sido utilizada essa fonte e quais os critérios de escolha dos fornecedores consultados)."/>
                 </Field>
+                
+                <div className="mt-6 border-t pt-4 dark:border-gray-600">
+                    <h4 className="font-bold text-gray-700 dark:text-gray-200 mb-2">Fornecedores Cotados</h4>
+                    <p className="text-sm text-gray-500 mb-4">Adicione os fornecedores consultados, suas justificativas e se atenderam aos requisitos.</p>
+                    
+                    {data.fornecedoresDiretos.map((f, idx) => (
+                         <div key={f.id} className="mb-4 p-3 bg-white dark:bg-gray-800 border rounded shadow-sm">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="font-bold dark:text-gray-200">{f.nome}</span>
+                                <button onClick={() => handleRemoveFornecedor(f.id)} className="text-red-500 hover:text-red-700 text-sm font-bold">Remover</button>
+                            </div>
+                            <p className="text-sm mb-2"><span className="font-semibold">Justificativa:</span> {f.justificativa}</p>
+                            <div className="flex items-center gap-4 mt-2 bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                                <span className="text-sm font-semibold">As propostas formais contém os requisitos?</span>
+                                <label className="inline-flex items-center"><input type="radio" name={`req-${f.id}`} checked={f.requisitos === 'sim'} onChange={() => handleFornecedorRequisitoChange(f.id, 'sim')} className="mr-1"/> Sim</label>
+                                <label className="inline-flex items-center"><input type="radio" name={`req-${f.id}`} checked={f.requisitos === 'nao'} onChange={() => handleFornecedorRequisitoChange(f.id, 'nao')} className="mr-1"/> Não</label>
+                            </div>
+                         </div>
+                    ))}
+
+                    <div className="grid md:grid-cols-[1fr_1fr_auto] gap-2 items-end mt-4">
+                         <Field label="Nome do Fornecedor">
+                            <input type="text" value={newFornecedorNome} onChange={e => setNewFornecedorNome(e.target.value)} className={inputClasses} placeholder="Nome da empresa"/>
+                         </Field>
+                         <Field label="Qual a razão da escolha?">
+                            <input type="text" value={newFornecedorJustificativa} onChange={e => setNewFornecedorJustificativa(e.target.value)} className={inputClasses} placeholder="Justificativa"/>
+                         </Field>
+                         <div className="mb-4">
+                            <button type="button" onClick={handleAddFornecedor} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg h-10">Adicionar</button>
+                         </div>
+                    </div>
+                </div>
             </div>
           )}
       </Section>
@@ -590,18 +670,44 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
             <Field label="Data" required>
                 <input type="date" name="data" value={data.data} onChange={handleChange} required className={inputClasses} />
             </Field>
-            
-            <div className="md:col-span-2 p-4 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 shadow-sm">
-                <p className="font-semibold mb-2 text-gray-800 dark:text-gray-200">Assinante</p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mt-6">
+             <div className="p-4 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 shadow-sm">
+                <p className="font-bold mb-2 text-cbmpa-red dark:text-red-400 border-b pb-1">Assinante 1 (Responsável)</p>
                 <Field label="Nome Completo" required>
-                    <input 
-                        type="text" 
-                        name="assinante1Nome" 
-                        value={data.assinante1Nome} 
-                        onChange={handleChange} 
-                        required
-                        className={inputClasses} 
-                    />
+                    <input type="text" name="assinante1Nome" value={data.assinante1Nome} onChange={handleChange} required className={inputClasses} />
+                </Field>
+                <Field label="Nome de Guerra" required>
+                    <input type="text" name="assinante1NomeGuerra" value={data.assinante1NomeGuerra} onChange={handleChange} required className={inputClasses} />
+                </Field>
+                <Field label="Cargo" required>
+                    <select name="assinante1Cargo" value={data.assinante1Cargo} onChange={handleChange} required className={inputClasses}>
+                        <option value="">Selecione o Cargo</option>
+                        {orcamentoCargoOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </Field>
+                <Field label="Função" required>
+                    <input type="text" name="assinante1Funcao" value={data.assinante1Funcao} onChange={handleChange} required className={inputClasses} />
+                </Field>
+            </div>
+
+            <div className="p-4 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 shadow-sm">
+                <p className="font-bold mb-2 text-cbmpa-red dark:text-red-400 border-b pb-1">Assinante 2</p>
+                <Field label="Nome Completo" required>
+                    <input type="text" name="assinante2Nome" value={data.assinante2Nome} onChange={handleChange} required className={inputClasses} />
+                </Field>
+                <Field label="Nome de Guerra" required>
+                    <input type="text" name="assinante2NomeGuerra" value={data.assinante2NomeGuerra} onChange={handleChange} required className={inputClasses} />
+                </Field>
+                <Field label="Cargo" required>
+                    <select name="assinante2Cargo" value={data.assinante2Cargo} onChange={handleChange} required className={inputClasses}>
+                        <option value="">Selecione o Cargo</option>
+                        {orcamentoCargoOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </Field>
+                <Field label="Função" required>
+                    <input type="text" name="assinante2Funcao" value={data.assinante2Funcao} onChange={handleChange} required className={inputClasses} />
                 </Field>
             </div>
         </div>

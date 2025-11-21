@@ -27,6 +27,7 @@ export interface DfdData extends Signatory {
   prazo: string;
   justificativaPrazo: string;
   statusPCA: 'sim' | 'nao' | 'inexistente' | '';
+  nomeGuerra: string;
 }
 
 export interface EtpItem {
@@ -166,6 +167,12 @@ export type OrcamentoPrecosInclusao = {
     [priceId: string]: boolean;
 }
 
+export interface OrcamentoFornecedor {
+    id: string;
+    nome: string;
+    justificativa: string;
+    requisitos: 'sim' | 'nao' | '';
+}
 
 export interface OrcamentoData {
     cidade: string;
@@ -181,10 +188,20 @@ export interface OrcamentoData {
     fontesPesquisa: string[];
     justificativaAusenciaFonte: string;
     justificativaPesquisaDireta: string;
+    fornecedoresDiretos: OrcamentoFornecedor[];
     metodologia: 'menor' | 'media' | 'mediana' | '';
     precosEncontrados: OrcamentoPrecos;
     precosIncluidos: OrcamentoPrecosInclusao;
     houveDescarte: 'sim' | 'nao' | '';
     justificativaDescarte: string;
+    // Signatory 1
     assinante1Nome: string;
+    assinante1NomeGuerra: string;
+    assinante1Cargo: string;
+    assinante1Funcao: string;
+    // Signatory 2
+    assinante2Nome: string;
+    assinante2NomeGuerra: string;
+    assinante2Cargo: string;
+    assinante2Funcao: string;
 }

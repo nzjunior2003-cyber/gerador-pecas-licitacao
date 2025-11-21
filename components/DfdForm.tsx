@@ -116,7 +116,8 @@ export const DfdForm: React.FC<DfdFormProps> = ({ data, setData }) => {
         <div className="grid md:grid-cols-2 gap-6">
           <Field label="Cidade" required><input type="text" name="cidade" value={data.cidade} onChange={handleChange} required className={inputClasses} /></Field>
           <Field label="Data" required><input type="date" name="data" value={data.data} onChange={handleChange} required className={inputClasses} /></Field>
-          <Field label="Nome do Servidor" required><input type="text" name="nome" value={data.nome} onChange={handleChange} required className={inputClasses} /></Field>
+          <Field label="Nome Completo do Servidor" required><input type="text" name="nome" value={data.nome} onChange={handleChange} required className={inputClasses} /></Field>
+          <Field label="Nome de Guerra" required><input type="text" name="nomeGuerra" value={data.nomeGuerra} onChange={handleChange} required className={inputClasses} /></Field>
           <Field label="Cargo" required>
             <select name="cargo" value={data.cargo} onChange={handleChange} required className={inputClasses}>
                 <option value="">Selecione o cargo</option>

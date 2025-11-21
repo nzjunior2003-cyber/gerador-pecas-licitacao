@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { DocumentType, DfdData, EtpData, RiscoData, OrcamentoData } from './types';
 import { generatePdf } from './services/pdfGenerator';
@@ -8,6 +7,7 @@ import { EtpForm } from './components/EtpForm';
 import { RiscoForm } from './components/RiscoForm';
 import { OrcamentoForm } from './components/OrcamentoForm';
 import { useFormWithHistory } from './hooks/useFormWithHistory';
+import { GoogleGenAI, Type } from "@google/genai";
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -29,6 +29,7 @@ const initialDfdState: DfdData = {
   prazo: today,
   justificativaPrazo: '',
   statusPCA: '',
+  nomeGuerra: '',
 };
 
 const initialEtpState: EtpData = {
@@ -108,12 +109,20 @@ const initialOrcamentoState: OrcamentoData = {
     fontesPesquisa: ['direta'], // Pre-selected based on PDF
     justificativaAusenciaFonte: '',
     justificativaPesquisaDireta: '',
+    fornecedoresDiretos: [],
     metodologia: '',
     precosEncontrados: {},
     precosIncluidos: {},
     houveDescarte: 'nao',
     justificativaDescarte: '',
     assinante1Nome: '',
+    assinante1NomeGuerra: '',
+    assinante1Cargo: '',
+    assinante1Funcao: '',
+    assinante2Nome: '',
+    assinante2NomeGuerra: '',
+    assinante2Cargo: '',
+    assinante2Funcao: '',
 };
 
 const documentOptions = [
@@ -295,25 +304,78 @@ function App() {
         return;
     }
     
-    let data;
-    switch(docType) {
-        case DocumentType.DFD: data = dfdData; break;
-        case DocumentType.ETP: data = etpData; break;
-        case DocumentType.RISCO: data = riscoData; break;
-        case DocumentType.ORCAMENTO: data = orcamentoData; break;
-        default: setToast({ message: 'Geração de PDF para este documento ainda não foi implementada.', type: 'info' }); return;
-    }
-    
     setIsLoading(true);
     // Give browser time to render loading spinner
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    const result = generatePdf(docType, data);
-    
-    setIsLoading(false);
+    if (docType === DocumentType.DFD) {
+        try {
+            setToast({ message: 'Analisando e aprimorando o texto com IA...', type: 'info' });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            const formattedPrazo = dfdData.prazo ? new Date(dfdData.prazo + 'T00:00:00').toLocaleDateString('pt-BR') : '...';
+            
+            const prompt = `Você é um especialista em redação de documentos oficiais para a administração pública brasileira. Sua tarefa é gerar três parágrafos distintos, formais, claros e coesos para um 'Documento de Formalização da Demanda' (DFD), baseados nas ideias fornecidas pelo usuário. Retorne um objeto JSON com uma única chave "paragrafos", que deve ser um array contendo os três parágrafos como strings.
 
-    if (!result.success) {
-      setToast({ message: `Ocorreu um erro ao gerar o PDF: ${result.error}`, type: 'error' });
+1.  Para o primeiro parágrafo, elabore um texto sobre o seguinte problema: "${dfdData.problema}". O parágrafo DEVE começar com a frase exata "Solicito que seja providenciada a solução para ".
+2.  Para o segundo parágrafo, elabore um texto sobre o seguinte quantitativo: "${dfdData.quantitativo}". O parágrafo DEVE começar com a frase exata "Estimo que o quantitativo necessário é de ".
+3.  Para o terceiro parágrafo, combine o prazo e a justificativa. Use a data "${formattedPrazo}" e a justificativa "${dfdData.justificativaPrazo}". O parágrafo DEVE começar com a frase exata "Informo que a aquisição deve ser concluída até ${formattedPrazo}, tendo em vista que ".
+
+O resultado deve ser exclusivamente o objeto JSON, sem nenhuma explicação ou texto introdutório.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                           paragrafos: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING }
+                           }
+                        },
+                        required: ["paragrafos"]
+                    }
+                }
+            });
+
+            const aiResult = JSON.parse(response.text);
+            const dataForPdf = { ...dfdData, aiParagraphs: aiResult.paragrafos };
+
+
+            setToast({ message: 'Texto aprimorado! Gerando PDF...', type: 'success' });
+            const result = generatePdf(docType, dataForPdf as DfdData);
+            if (!result.success) {
+                setToast({ message: `Ocorreu um erro ao gerar o PDF: ${result.error}`, type: 'error' });
+            }
+        } catch (e) {
+            console.error("AI analysis failed:", e);
+            setToast({ message: 'Falha na análise da IA. Gerando PDF com os dados originais.', type: 'info' });
+            const result = generatePdf(docType, dfdData); // Fallback
+            if (!result.success) {
+                setToast({ message: `Ocorreu um erro ao gerar o PDF: ${result.error}`, type: 'error' });
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    } else {
+        // Logic for other documents
+        let data;
+        switch(docType) {
+            case DocumentType.ETP: data = etpData; break;
+            case DocumentType.RISCO: data = riscoData; break;
+            case DocumentType.ORCAMENTO: data = orcamentoData; break;
+            default: 
+                setToast({ message: 'Geração de PDF para este documento ainda não foi implementada.', type: 'info' }); 
+                setIsLoading(false);
+                return;
+        }
+        const result = generatePdf(docType, data);
+        setIsLoading(false);
+        if (!result.success) {
+            setToast({ message: `Ocorreu um erro ao gerar o PDF: ${result.error}`, type: 'error' });
+        }
     }
   };
 
@@ -383,5 +445,4 @@ function App() {
     </div>
   );
 }
-// FIX: Export the App component as a default to be used in index.tsx.
 export default App;
