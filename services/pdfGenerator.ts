@@ -466,11 +466,11 @@ const generateOrcamentoPdf = (doc: jsPDF, data: OrcamentoData) => {
     const suppliers = data.fornecedoresDiretos || [];
     const s4Body: any[] = [];
 
-    // 4.1 Logic
-    const isDireta = data.fontesPesquisa.includes('direta');
-    const checkSim = isDireta ? '[ X ]' : '[   ]';
-    const checkNao = !isDireta ? '[ X ]' : '[   ]';
-    const just41 = data.justificativaPesquisaDireta || 'Não se aplica.';
+    // 4.1 Logic - Only "Sim" if EXCLUSIVE direct research.
+    const checkSim = isExclusiveDireta ? '[ X ]' : '[   ]';
+    const checkNao = !isExclusiveDireta ? '[ X ]' : '[   ]';
+    // Enforce "Não se aplica" if not exclusive
+    const just41 = isExclusiveDireta ? (data.justificativaPesquisaDireta || 'Não se aplica.') : 'Não se aplica.';
 
     // 4.1 Row
     s4Body.push([
@@ -737,12 +737,17 @@ const generateOrcamentoPdf = (doc: jsPDF, data: OrcamentoData) => {
     // @ts-ignore
     yPos = doc.lastAutoTable.finalY + 8;
 
-    // --- New Comparison Table for Adesão ---
-    if (data.tipoOrcamento === 'adesao_ata') {
+    // --- New Comparison Table for Adesão and Aditivo ---
+    if (data.tipoOrcamento === 'adesao_ata' || data.tipoOrcamento === 'aditivo_contratual') {
         checkAndAddPage(doc, 40);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(11);
-        doc.text('QUADRO COMPARATIVO DE PREÇOS (ADESÃO À ATA)', PAGE_WIDTH / 2, yPos, { align: 'center' });
+        
+        const tableTitle = data.tipoOrcamento === 'adesao_ata' 
+            ? 'QUADRO COMPARATIVO DE PREÇOS (ADESÃO À ATA)'
+            : 'QUADRO COMPARATIVO DE PREÇOS (ADITIVO CONTRATUAL)';
+            
+        doc.text(tableTitle, PAGE_WIDTH / 2, yPos, { align: 'center' });
         yPos += 8;
 
         const parseCurrencyToNum = (value: string | undefined): number | null => {
@@ -758,28 +763,61 @@ const generateOrcamentoPdf = (doc: jsPDF, data: OrcamentoData) => {
         };
 
         const comparisonBody: any[] = [];
+        
+        // Header logic for Aditivo
+        let colUnitarioHeader = 'Novo Valor Unitário';
+        if (data.tipoOrcamento === 'aditivo_contratual') {
+             if (data.haveraReajuste === 'sim' && data.porcentagemReajuste) {
+                 colUnitarioHeader = `Valor Unitário com Reajuste ${data.porcentagemReajuste}%`;
+             } else {
+                 colUnitarioHeader = 'Valor Unitário sem Reajuste';
+             }
+        }
+
         data.itemGroups.forEach(group => {
             const itemPrices = data.precosEncontrados[group.id] || [];
             const includedPrices = itemPrices.filter(p => data.precosIncluidos[p.id] ?? true);
-            const ataPrices = includedPrices.filter(p => p.source === 'ata');
-            const otherPrices = includedPrices.filter(p => p.source !== 'ata');
+            const otherPrices = includedPrices.filter(p => p.source !== 'ata'); // For Aditivo, basically all valid external prices
             
             const valorMercado = calculateMarketValue(otherPrices.map(p => p.value));
-            const precoAta = ataPrices.length > 0 ? (parseCurrencyToNum(ataPrices[0].value) ?? 0) : 0;
-            const precoAdotado = group.estimativaUnitaria;
             
-            comparisonBody.push([ 
-                group.itemTR, 
-                group.descricao.substring(0, 100) + (group.descricao.length > 100 ? '...' : ''), 
-                formatCurrency(valorMercado), 
-                formatCurrency(precoAta), 
-                formatCurrency(precoAdotado) 
-            ]);
+            if (data.tipoOrcamento === 'adesao_ata') {
+                const ataPrices = includedPrices.filter(p => p.source === 'ata');
+                const precoAta = ataPrices.length > 0 ? (parseCurrencyToNum(ataPrices[0].value) ?? 0) : 0;
+                const precoAdotado = group.estimativaUnitaria;
+                
+                comparisonBody.push([ 
+                    group.itemTR, 
+                    group.descricao.substring(0, 100) + (group.descricao.length > 100 ? '...' : ''), 
+                    formatCurrency(valorMercado), 
+                    formatCurrency(precoAta), 
+                    formatCurrency(precoAdotado) 
+                ]);
+            } else {
+                // Aditivo Logic
+                const baseUnitPrice = group.estimativaUnitaria;
+                const reajusteFactor = (data.haveraReajuste === 'sim' && data.porcentagemReajuste) ? (1 + (data.porcentagemReajuste / 100)) : 1;
+                
+                // Unit Price with readjustment
+                const adjustedUnitPrice = baseUnitPrice * reajusteFactor;
+
+                comparisonBody.push([ 
+                    group.itemTR, 
+                    group.descricao.substring(0, 100) + (group.descricao.length > 100 ? '...' : ''), 
+                    formatCurrency(valorMercado), 
+                    formatCurrency(adjustedUnitPrice), // Valor Unitário com/sem Reajuste
+                    formatCurrency(adjustedUnitPrice)  // Preço Adotado (mesmo do novo unitário)
+                ]);
+            }
         });
+
+        const headRow = data.tipoOrcamento === 'adesao_ata' 
+            ? ['Item', 'Descrição', 'Valor de Mercado (Média)', 'Preço da Ata', 'Preço Adotado']
+            : ['Item', 'Descrição', 'Valor de Mercado (Média)', colUnitarioHeader, 'Preço Adotado'];
 
         autoTable(doc, {
             startY: yPos,
-            head: [['Item', 'Descrição', 'Valor de Mercado (Média)', 'Preço da Ata', 'Preço Adotado']],
+            head: [headRow],
             body: comparisonBody,
             theme: 'grid',
             headStyles: { fontStyle: 'bold', fillColor: TABLE_HEADER_YELLOW, textColor: TEXT_COLOR_NORMAL, lineColor: BORDER_COLOR_DARK, lineWidth: 0.2, halign: 'center', fontSize: 9 },
@@ -796,85 +834,152 @@ const generateOrcamentoPdf = (doc: jsPDF, data: OrcamentoData) => {
     checkAndAddPage(doc, 30);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('PREÇO ESTIMADO DE MERCADO', PAGE_WIDTH / 2, yPos, { align: 'center' });
+    
+    const finalTitle = data.tipoOrcamento === 'aditivo_contratual' 
+        ? 'PREÇO ESTIMADO DA ALTERAÇÃO CONTRATUAL'
+        : 'PREÇO ESTIMADO DE MERCADO';
+        
+    doc.text(finalTitle, PAGE_WIDTH / 2, yPos, { align: 'center' });
     yPos += 8;
 
     const resultTableBody: any[] = [];
     let grandTotal = 0;
     
-    data.itemGroups.forEach(group => {
-        const total = group.estimativaUnitaria * group.quantidadeTotal;
-        grandTotal += total;
+    if (data.tipoOrcamento === 'aditivo_contratual') {
+        // Logic for Aditivo
+        data.itemGroups.forEach(group => {
+             const baseUnitPrice = group.estimativaUnitaria;
+             // Reajuste only for the aditivo quantities calculation part
+             const reajusteFactor = (data.haveraReajuste === 'sim' && data.porcentagemReajuste) ? (1 + (data.porcentagemReajuste / 100)) : 1;
+             const adjustedUnitPrice = baseUnitPrice * reajusteFactor;
+             
+             const aditivoQtd = group.aditivoQuantidade || 0;
+             const aditivoValor = group.aditivoValor || 0;
+             const porcentagemAditivo = group.aditivoPorcentagem ? `${group.aditivoPorcentagem.toLocaleString('pt-BR', {maximumFractionDigits: 2})}%` : '-';
+             
+             // Calculate new Global: "somando o valor global antes do aditivo com o aditivo"
+             // "reajuste seja aplicado apenas às quantidades do aditivo" -> Original calculation uses base price
+             const originalTotal = group.quantidadeTotal * baseUnitPrice;
+             const newGlobal = originalTotal + aditivoValor;
+             
+             grandTotal += aditivoValor; // Footer shows Total Aditivo
 
-        // Determine Description (truncated if too long to save space, though wrapping handles it)
-        const desc = group.descricao;
+             // Main Row
+             resultTableBody.push([
+                { content: group.itemTR, styles: { fillColor: ITEM_GRAY_BG } },
+                group.descricao,
+                porcentagemAditivo,
+                formatCurrency(adjustedUnitPrice),
+                aditivoQtd.toLocaleString('pt-BR', {maximumFractionDigits: 2}),
+                formatCurrency(aditivoValor)
+             ]);
 
-        // Handle Quotas Split Rows
-        if (group.cotas && group.cotas.length > 0) {
-            // Sort: Ampla first
-            const sortedCotas = [...group.cotas].sort((a, b) => {
-                if (a.tipo.includes('AMPLA')) return -1;
-                if (b.tipo.includes('AMPLA')) return 1;
-                return 0;
-            });
+             // Row for "Valor Inicial"
+             resultTableBody.push([
+                 {
+                     content: `Valor Inicial: ${group.quantidadeTotal.toLocaleString('pt-BR', {maximumFractionDigits: 2})} (Qtd) x ${formatCurrency(baseUnitPrice)} (Unit.) = ${formatCurrency(originalTotal)}`,
+                     colSpan: 6,
+                     styles: { halign: 'right', fontSize: 8, textColor: [80, 80, 80] }
+                 }
+             ]);
 
-            sortedCotas.forEach(cota => {
-                const subTotal = group.estimativaUnitaria * cota.quantidade;
-                // Simplify type label
-                let typeLabel: string = cota.tipo;
-                if (typeLabel.includes('AMPLA')) typeLabel = 'AMPLA';
-                if (typeLabel.includes('ME/EPP') && !typeLabel.includes('AMPLA')) typeLabel = 'ME/EPP';
+             // Detail Row for "Novo Valor Global"
+             resultTableBody.push([
+                 { 
+                     content: `Novo Valor Global (Contrato Original + Aditivo): ${formatCurrency(newGlobal)}`, 
+                     colSpan: 6, 
+                     styles: { halign: 'right', fillColor: QUESTION_BLUE_BG, fontStyle: 'bold' } 
+                 }
+             ]);
+        });
+        
+        // The header for the aditivo specific columns
+        autoTable(doc, {
+            startY: yPos,
+            head: [['Item', 'Descrição', 'Aditivo (%)', 'Valor Unit. (c/ Reajuste)', 'Qtd Aditivo', 'Valor Aditivo']],
+            body: resultTableBody,
+            foot: [[
+                { content: 'TOTAL DO ADITIVO', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: TABLE_HEADER_YELLOW, textColor: TEXT_COLOR_NORMAL, fontSize: 9 } }, 
+                { content: formatCurrency(grandTotal), styles: { fontStyle: 'bold', halign: 'right', fillColor: TABLE_HEADER_YELLOW, textColor: TEXT_COLOR_NORMAL, fontSize: 9 } }
+            ]],
+            theme: 'grid',
+            headStyles: { fontStyle: 'bold', fillColor: TABLE_HEADER_YELLOW, textColor: TEXT_COLOR_NORMAL, lineColor: BORDER_COLOR_DARK, lineWidth: 0.2, halign: 'center', fontSize: 9 },
+            styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.5, lineColor: BORDER_COLOR_DARK, lineWidth: 0.2, halign: 'center', valign: 'middle' },
+            columnStyles: { 
+                0: { cellWidth: 15 },
+                1: { halign: 'left' },
+                2: { halign: 'center', cellWidth: 20 },
+                3: { halign: 'right', cellWidth: 25 },
+                4: { halign: 'center', cellWidth: 20 },
+                5: { halign: 'right', cellWidth: 30 }
+            },
+            margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+        });
 
+    } else {
+        // Standard Logic
+        data.itemGroups.forEach(group => {
+            const total = group.estimativaUnitaria * group.quantidadeTotal;
+            grandTotal += total;
+
+            const desc = group.descricao;
+
+            if (group.cotas && group.cotas.length > 0) {
+                const sortedCotas = [...group.cotas].sort((a, b) => {
+                    if (a.tipo.includes('AMPLA')) return -1;
+                    if (b.tipo.includes('AMPLA')) return 1;
+                    return 0;
+                });
+
+                sortedCotas.forEach(cota => {
+                    const subTotal = group.estimativaUnitaria * cota.quantidade;
+                    let typeLabel: string = cota.tipo;
+                    if (typeLabel.includes('AMPLA')) typeLabel = 'AMPLA';
+                    if (typeLabel.includes('ME/EPP') && !typeLabel.includes('AMPLA')) typeLabel = 'ME/EPP';
+
+                    resultTableBody.push([
+                        { content: group.itemTR, styles: { fillColor: ITEM_GRAY_BG } },
+                        desc,
+                        typeLabel,
+                        formatCurrency(group.estimativaUnitaria),
+                        cota.quantidade,
+                        formatCurrency(subTotal)
+                    ]);
+                });
+            } else {
                 resultTableBody.push([
                     { content: group.itemTR, styles: { fillColor: ITEM_GRAY_BG } },
                     desc,
-                    typeLabel, // New Column Name: AMPLA OU ME/EPP
-                    formatCurrency(group.estimativaUnitaria), // Added Unit Price
-                    cota.quantidade,
-                    formatCurrency(subTotal)
+                    '-',
+                    formatCurrency(group.estimativaUnitaria),
+                    group.quantidadeTotal,
+                    formatCurrency(total)
                 ]);
-            });
-        } else {
-             // No quota split, single row
-            resultTableBody.push([
-                { content: group.itemTR, styles: { fillColor: ITEM_GRAY_BG } },
-                desc,
-                '-', // New Column
-                formatCurrency(group.estimativaUnitaria), // Added Unit Price
-                group.quantidadeTotal,
-                formatCurrency(total)
-            ]);
-        }
-    });
-
-    autoTable(doc, {
-        startY: yPos,
-        head: [['Item', 'Descrição', 'AMPLA OU ME/EPP', 'Valor Unit.', 'Qtd', 'Total']],
-        body: resultTableBody,
-        foot: [[
-            { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: TABLE_HEADER_YELLOW, textColor: TEXT_COLOR_NORMAL, fontSize: 9 } }, 
-            { content: formatCurrency(grandTotal), styles: { fontStyle: 'bold', halign: 'right', fillColor: TABLE_HEADER_YELLOW, textColor: TEXT_COLOR_NORMAL, fontSize: 9 } }
-        ]],
-        theme: 'grid',
-        didParseCell: (data) => {
-            if (data.section === 'head') {
-              data.cell.styles.fillColor = TABLE_HEADER_YELLOW;
-              data.cell.styles.textColor = TEXT_COLOR_NORMAL;
-              data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fontSize = 9;
             }
-        },
-        styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.5, lineColor: BORDER_COLOR_DARK, lineWidth: 0.2, halign: 'center', valign: 'middle' },
-        columnStyles: { 
-            0: { cellWidth: 15 },
-            1: { halign: 'left' }, // Description takes remaining space
-            2: { cellWidth: 25 },
-            3: { halign: 'right', cellWidth: 25 }, // Unit Price
-            4: { cellWidth: 15 }, // Qtd
-            5: { halign: 'right', cellWidth: 30 } // Total
-        },
-        margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
-    });
+        });
+
+        autoTable(doc, {
+            startY: yPos,
+            head: [['Item', 'Descrição', 'AMPLA OU ME/EPP', 'Valor Unit.', 'Qtd', 'Total']],
+            body: resultTableBody,
+            foot: [[
+                { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: TABLE_HEADER_YELLOW, textColor: TEXT_COLOR_NORMAL, fontSize: 9 } }, 
+                { content: formatCurrency(grandTotal), styles: { fontStyle: 'bold', halign: 'right', fillColor: TABLE_HEADER_YELLOW, textColor: TEXT_COLOR_NORMAL, fontSize: 9 } }
+            ]],
+            theme: 'grid',
+            headStyles: { fontStyle: 'bold', fillColor: TABLE_HEADER_YELLOW, textColor: TEXT_COLOR_NORMAL, lineColor: BORDER_COLOR_DARK, lineWidth: 0.2, halign: 'center', fontSize: 9 },
+            styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.5, lineColor: BORDER_COLOR_DARK, lineWidth: 0.2, halign: 'center', valign: 'middle' },
+            columnStyles: { 
+                0: { cellWidth: 15 },
+                1: { halign: 'left' },
+                2: { cellWidth: 25 },
+                3: { halign: 'right', cellWidth: 25 },
+                4: { cellWidth: 15 },
+                5: { halign: 'right', cellWidth: 30 }
+            },
+            margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT },
+        });
+    }
     // @ts-ignore
     yPos = doc.lastAutoTable.finalY + 5;
 

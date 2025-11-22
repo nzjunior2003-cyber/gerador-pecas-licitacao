@@ -1,5 +1,4 @@
 
-
 export enum DocumentType {
   NONE = '',
   DFD = 'dfd',
@@ -151,6 +150,10 @@ export interface OrcamentoItemGroup {
     unidade: string;
     cotas: OrcamentoCota[];
     quantidadeTotal: number;
+    // Aditivo Fields
+    aditivoPorcentagem?: number;
+    aditivoValor?: number;
+    aditivoQuantidade?: number;
 }
 
 export interface OrcamentoPrice {
@@ -178,11 +181,18 @@ export interface OrcamentoData {
     cidade: string;
     data: string;
     pae: string;
-    tipoOrcamento: 'licitacao' | 'adesao_ata' | '';
+    tipoOrcamento: 'licitacao' | 'adesao_ata' | 'dispensa_licitacao' | 'aditivo_contratual' | '';
     numeroAta: string;
     anoAta: string;
     orgaoAta: string;
     estadoAta: string;
+    // Aditivo Fields
+    numeroContrato?: string;
+    anoContrato?: string;
+    haveraReajuste?: 'sim' | 'nao' | '';
+    indiceReajuste?: string;
+    porcentagemReajuste?: number;
+
     modalidadeLicitacao: 'pregao_eletronico_comum' | 'pregao_eletronico_rp' | 'outra' | '';
     itemGroups: OrcamentoItemGroup[];
     fontesPesquisa: string[];

@@ -138,9 +138,15 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
   // Effect for Price Calculation
   useEffect(() => {
     setData(prevData => {
-      // For licitacao, we need a methodology. For adesao, we don't.
-      if (prevData.tipoOrcamento === 'licitacao' && !prevData.metodologia) {
-        return prevData; // Do nothing if no methodology is selected for licitation
+      // Exclude 'aditivo_contratual' from auto-calculation to allow manual unit price input
+      const typesRequiringMethodology = ['licitacao', 'dispensa_licitacao'];
+      
+      if (typesRequiringMethodology.includes(prevData.tipoOrcamento) && !prevData.metodologia) {
+        return prevData;
+      }
+
+      if (prevData.tipoOrcamento === 'aditivo_contratual') {
+        return prevData; // Skip auto calculation for aditivo
       }
 
       const newItemGroups = prevData.itemGroups.map(group => {
@@ -164,7 +170,7 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
             } else {
                 newEstimate = precoAta;
             }
-        } else { // 'licitacao'
+        } else { // 'licitacao', 'dispensa_licitacao'
             newEstimate = calculateEstimate(includedPrices.map(p => p.value), prevData.metodologia);
         }
         
@@ -235,6 +241,51 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
       itemGroups: prev.itemGroups.map(group => group.id === id ? { ...group, [field]: value } : group)
     }));
   };
+
+  const handleAditivoChange = (id: string, field: 'aditivoPorcentagem' | 'aditivoValor' | 'aditivoQuantidade', value: number) => {
+    setData(prev => {
+        return {
+            ...prev,
+            itemGroups: prev.itemGroups.map(group => {
+                if (group.id !== id) return group;
+
+                // Calculate based on Total Item Value (Unit * Qtd) adjusted by readjustment
+                const baseUnitPrice = group.estimativaUnitaria;
+                const reajusteFactor = (prev.haveraReajuste === 'sim' && prev.porcentagemReajuste) 
+                    ? (1 + (prev.porcentagemReajuste / 100)) 
+                    : 1;
+                const adjustedUnitPrice = baseUnitPrice * reajusteFactor;
+                const adjustedTotalBase = adjustedUnitPrice * group.quantidadeTotal;
+
+                if (adjustedTotalBase <= 0 || group.quantidadeTotal <= 0 || adjustedUnitPrice <= 0) {
+                     return { ...group, [field]: value };
+                }
+
+                let updates: Partial<OrcamentoItemGroup> = { [field]: value };
+                
+                if (field === 'aditivoPorcentagem') {
+                    // Qtd = Total Qtd * %
+                    updates.aditivoQuantidade = group.quantidadeTotal * (value / 100);
+                    // Valor = Total Base * %
+                    updates.aditivoValor = adjustedTotalBase * (value / 100);
+                } else if (field === 'aditivoQuantidade') {
+                    // % = (Qtd / Total Qtd) * 100
+                    updates.aditivoPorcentagem = (value / group.quantidadeTotal) * 100;
+                    // Valor = Qtd * Unit Price
+                    updates.aditivoValor = value * adjustedUnitPrice;
+                } else if (field === 'aditivoValor') {
+                    // % = (Valor / Total Base) * 100
+                    updates.aditivoPorcentagem = (value / adjustedTotalBase) * 100;
+                    // Qtd = Valor / Unit Price
+                    updates.aditivoQuantidade = value / adjustedUnitPrice;
+                }
+                
+                return { ...group, ...updates };
+            })
+        };
+    });
+  };
+
 
   const addGroup = () => {
     const newGroup: OrcamentoItemGroup = { 
@@ -441,8 +492,13 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
       }));
   };
 
-  const showLoteControls = data.tipoOrcamento !== 'adesao_ata';
+  const showLoteControls = data.tipoOrcamento !== 'adesao_ata' && data.tipoOrcamento !== 'aditivo_contratual';
   const isExclusiveDireta = data.fontesPesquisa.length === 1 && data.fontesPesquisa.includes('direta');
+  const isAditivo = data.tipoOrcamento === 'aditivo_contratual';
+  
+  // Condition to show Market Research for Aditivo
+  const needsAditivoResearch = isAditivo && (data.haveraReajuste === 'sim' || data.itemGroups.some(g => (g.aditivoPorcentagem || 0) > 25));
+  const showPriceResearch = !isAditivo || needsAditivoResearch;
 
   return (
     <div className="space-y-6">
@@ -463,6 +519,8 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
                 <select name="tipoOrcamento" value={data.tipoOrcamento} onChange={handleChange} className={inputClasses}>
                     <option value="licitacao">Licitação</option>
                     <option value="adesao_ata">Adesão à Ata de Registro de Preços</option>
+                    <option value="dispensa_licitacao">Dispensa de Licitação</option>
+                    <option value="aditivo_contratual">Aditivo Contratual</option>
                 </select>
             </Field>
             {data.tipoOrcamento === 'licitacao' && (
@@ -503,9 +561,33 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
                     </div>
                 </div>
             )}
+            {isAditivo && (
+                <div className="mt-4">
+                    <p className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Dados do Contrato</p>
+                    <div className="flex flex-wrap gap-4 p-4 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 shadow-sm items-end">
+                        <div className="flex-1 min-w-[200px]">
+                            <Field label="Número do Contrato" required>
+                                <input type="text" name="numeroContrato" value={data.numeroContrato || ''} onChange={handleChange} required className={inputClasses} />
+                            </Field>
+                        </div>
+                        <div className="flex-1 min-w-[150px]">
+                            <Field label="Ano do Contrato" required>
+                                <select name="anoContrato" value={data.anoContrato || ''} onChange={handleChange} required className={inputClasses}>
+                                    <option value="">Selecione</option>
+                                    <option value="2021">2021</option>
+                                    <option value="2022">2022</option>
+                                    <option value="2023">2023</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2025">2025</option>
+                                </select>
+                            </Field>
+                        </div>
+                    </div>
+                </div>
+            )}
       </Section>
       
-      <Section title="Itens da Contratação (Descrição e Quantidade)">
+      <Section title={isAditivo ? "Itens do Contrato (Valor Unitário, Quantidade e Total)" : "Itens da Contratação (Descrição e Quantidade)"}>
         {showLoteControls && selectedItems.size > 0 && (
             <div className="flex flex-wrap items-center justify-end gap-4 mb-4 p-4 bg-gray-100 dark:bg-gray-700/80 rounded-lg">
                 <span className="font-semibold dark:text-gray-200">{selectedItems.size} item(s) selecionado(s)</span>
@@ -526,20 +608,124 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
                 {sortedLoteIds.map(loteId => (
                     <div key={loteId} className="border-2 border-blue-300 dark:border-blue-600 rounded-lg p-4 mb-4">
                         <h3 className="text-lg font-bold text-blue-700 dark:text-blue-300 mb-2">Lote {loteId}</h3>
-                        {(lotes[loteId]).map(group => <ItemForm key={group.id} group={group} selected={selectedItems.has(group.id)} onSelect={toggleItemSelection} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={true} inputClasses={inputClasses} />)}
+                        {(lotes[loteId]).map(group => <ItemForm key={group.id} group={group} selected={selectedItems.has(group.id)} onSelect={toggleItemSelection} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={true} inputClasses={inputClasses} isAditivo={isAditivo} />)}
                     </div>
                 ))}
-                {ungrouped.map(group => <ItemForm key={group.id} group={group} selected={selectedItems.has(group.id)} onSelect={toggleItemSelection} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={true} inputClasses={inputClasses} />)}
+                {ungrouped.map(group => <ItemForm key={group.id} group={group} selected={selectedItems.has(group.id)} onSelect={toggleItemSelection} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={true} inputClasses={inputClasses} isAditivo={isAditivo} />)}
             </>
         ) : (
             <>
-                {data.itemGroups.map(group => <ItemForm key={group.id} group={group} selected={false} onSelect={() => {}} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={false} inputClasses={inputClasses} />)}
+                {data.itemGroups.map(group => <ItemForm key={group.id} group={group} selected={false} onSelect={() => {}} onRemove={removeGroup} onGroupChange={handleGroupChange} showSelect={false} inputClasses={inputClasses} isAditivo={isAditivo} />)}
             </>
         )}
         
         <button onClick={addGroup} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition mt-2">➕ Adicionar Item</button>
       </Section>
+    
+    {isAditivo && (
+        <Section title="Dados do Reajuste">
+             <div className="grid md:grid-cols-1 gap-6">
+                <div>
+                    <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Haverá reajuste?</label>
+                    <div className="flex gap-4">
+                        <label className="inline-flex items-center"><input type="radio" name="haveraReajuste" value="sim" checked={data.haveraReajuste === 'sim'} onChange={handleChange} className="mr-2"/> Sim</label>
+                        <label className="inline-flex items-center"><input type="radio" name="haveraReajuste" value="nao" checked={data.haveraReajuste === 'nao'} onChange={handleChange} className="mr-2"/> Não</label>
+                    </div>
+                </div>
+                {data.haveraReajuste === 'sim' && (
+                    <div className="grid md:grid-cols-2 gap-6 p-4 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 shadow-sm">
+                         <Field label="Porcentagem de Reajuste (%)" required>
+                             <input type="number" name="porcentagemReajuste" value={data.porcentagemReajuste || ''} onChange={handleChange} className={inputClasses} placeholder="Ex: 5.0" />
+                         </Field>
+                         <Field label="Índice" required>
+                             <select name="indiceReajuste" value={data.indiceReajuste || ''} onChange={handleChange} className={inputClasses}>
+                                 <option value="">Selecione o Índice</option>
+                                 <option value="IPCA">IPCA</option>
+                                 <option value="IGP-M">IGP-M</option>
+                                 <option value="INPC">INPC</option>
+                                 <option value="IPC-Fipe">IPC-Fipe</option>
+                                 <option value="Outro">Outro</option>
+                             </select>
+                         </Field>
+                    </div>
+                )}
+             </div>
+        </Section>
+    )}
 
+    {isAditivo && data.itemGroups.length > 0 && (
+        <Section title="Cálculo do Valor do Aditivo" instruction="De quanto será o aditivo? Insira a porcentagem, a quantidade ou o valor (R$) do aditivo. O cálculo utiliza o valor com reajuste (se houver).">
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-gray-600 dark:text-gray-400">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-300">
+                        <tr>
+                            <th className="px-4 py-3">Item</th>
+                            <th className="px-4 py-3">Descrição</th>
+                            <th className="px-4 py-3 text-center">Qtd Original</th>
+                            <th className="px-4 py-3 text-right">V. Unit. Contrato</th>
+                            <th className="px-4 py-3 text-right">V. Total Base</th>
+                            <th className="px-4 py-3 text-center">Aditivo (%)</th>
+                            <th className="px-4 py-3 text-center">Aditivo (Qtd)</th>
+                            <th className="px-4 py-3 text-center">Aditivo Total (R$)</th>
+                            <th className="px-4 py-3 text-right">Novo V. Global</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.itemGroups.map(group => {
+                            const baseUnitPrice = group.estimativaUnitaria;
+                            // Value for the "Total Base" display (EXCLUDES reajuste)
+                            const originalTotalBase = baseUnitPrice * group.quantidadeTotal;
+                            
+                            const aditivoTotalVal = group.aditivoValor || 0;
+                            
+                            // New Global Price = Original Contract Total + Aditivo Amount
+                            const newGlobalPrice = originalTotalBase + aditivoTotalVal;
+
+                            return (
+                                <tr key={group.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                    <td className="px-4 py-2 font-medium">{group.itemTR}</td>
+                                    <td className="px-4 py-2 truncate max-w-xs" title={group.descricao}>{group.descricao}</td>
+                                    <td className="px-4 py-2 text-center">{group.quantidadeTotal}</td>
+                                    <td className="px-4 py-2 text-right">{baseUnitPrice.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
+                                    <td className="px-4 py-2 text-right text-blue-600 dark:text-blue-400">{originalTotalBase.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
+                                    <td className="px-4 py-2">
+                                        <input 
+                                            type="number" 
+                                            className="w-20 p-1 border rounded text-center dark:bg-gray-700 dark:border-gray-600"
+                                            value={group.aditivoPorcentagem ? parseFloat(group.aditivoPorcentagem.toFixed(2)) : ''}
+                                            onChange={(e) => handleAditivoChange(group.id, 'aditivoPorcentagem', parseFloat(e.target.value) || 0)}
+                                            placeholder="%"
+                                        />
+                                    </td>
+                                     <td className="px-4 py-2">
+                                        <input 
+                                            type="number" 
+                                            className="w-20 p-1 border rounded text-center dark:bg-gray-700 dark:border-gray-600"
+                                            value={group.aditivoQuantidade ? parseFloat(group.aditivoQuantidade.toFixed(2)) : ''}
+                                            onChange={(e) => handleAditivoChange(group.id, 'aditivoQuantidade', parseFloat(e.target.value) || 0)}
+                                            placeholder="Qtd"
+                                        />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        <input 
+                                            type="number" 
+                                            className="w-28 p-1 border rounded text-center dark:bg-gray-700 dark:border-gray-600"
+                                            value={group.aditivoValor ? parseFloat(group.aditivoValor.toFixed(2)) : ''}
+                                            onChange={(e) => handleAditivoChange(group.id, 'aditivoValor', parseFloat(e.target.value) || 0)}
+                                            placeholder="R$"
+                                        />
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-bold">{newGlobalPrice.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </Section>
+    )}
+
+    {showPriceResearch && (
       <Section title="Fontes Consultadas para a Pesquisa de Preço" instruction="Selecione as fontes que foram utilizadas. Apenas as fontes selecionadas aparecerão como opção ao adicionar preços.">
           <div className="space-y-4">
             {fontesPairs.map((pair, index) => (
@@ -613,16 +799,20 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
             </div>
           )}
       </Section>
+      )}
       
-      <Section title="Metodologia da Estimativa de Preço" instruction="Selecione uma metodologia para calcular o preço estimado para cada item.">
+      {showPriceResearch && (
+      <Section title="Metodologia da Estimativa de Preço" instruction="Selecione uma metodologia para calcular o preço estimado (Média de Mercado).">
           <RadioGroup name="metodologia" value={data.metodologia} options={[
               {val: 'menor', label: 'Menor preço'},
               {val: 'media', label: 'Média aritmética'},
               {val: 'mediana', label: 'Mediana'}
           ]} onChange={handleChange} />
       </Section>
+      )}
       
-      <Section title="Resultado da Pesquisa (Preços Encontrados)" instruction="Adicione os preços pesquisados. Marque as caixas para incluir/excluir um preço do cálculo da estimativa.">
+      {showPriceResearch && (
+      <Section title="Resultado da Pesquisa (Preços Encontrados)" instruction="Adicione os preços pesquisados para comparação.">
         {data.itemGroups.map(group => (
             <div key={group.id} className="p-4 border rounded-lg mb-4 bg-white dark:bg-gray-800 shadow">
                 <h3 className="font-bold text-lg mb-2 dark:text-gray-200">Item {group.itemTR}: {group.descricao.substring(0, 50)}...</h3>
@@ -661,6 +851,54 @@ export const OrcamentoForm: React.FC<OrcamentoFormProps> = ({ data, setData }) =
             {data.houveDescarte === 'sim' && <Field label="Justificativa do Descarte"><textarea name="justificativaDescarte" value={data.justificativaDescarte} onChange={handleChange} className={`${inputClasses} h-24`}/></Field>}
         </div>
       </Section>
+      )}
+
+      {needsAditivoResearch && (
+          <Section title="Comparativo: Novo Valor do Contrato x Média de Mercado">
+               <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-gray-600 dark:text-gray-400">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-300">
+                        <tr>
+                            <th className="px-4 py-3">Item</th>
+                            <th className="px-4 py-3">Descrição</th>
+                            <th className="px-4 py-3 text-right">Novo V. Unitário (Contrato + Aditivo)</th>
+                            <th className="px-4 py-3 text-right">V. Médio Mercado</th>
+                            <th className="px-4 py-3 text-right">Diferença</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {data.itemGroups.map(group => {
+                        // Calculate New Unit Price (Contract + Aditivo)
+                        const baseUnitPrice = group.estimativaUnitaria;
+                        const reajusteFactor = (data.haveraReajuste === 'sim' && data.porcentagemReajuste) ? (1 + (data.porcentagemReajuste / 100)) : 1;
+                        const adjustedTotalBase = (baseUnitPrice * reajusteFactor) * group.quantidadeTotal;
+                        const aditivoTotalVal = group.aditivoValor || 0;
+                        const newGlobalPrice = adjustedTotalBase + aditivoTotalVal;
+                        const newUnitPrice = group.quantidadeTotal > 0 ? newGlobalPrice / group.quantidadeTotal : 0;
+
+                        // Calculate Market Average from Research
+                        const itemPrices = data.precosEncontrados[group.id] || [];
+                        const includedPrices = itemPrices.filter(p => data.precosIncluidos[p.id] ?? true);
+                        const marketAverage = calculateEstimate(includedPrices.map(p => p.value), 'media'); // Force average for comparison as per prompt
+
+                        const difference = newUnitPrice - marketAverage;
+                        const diffColor = difference <= 0 ? 'text-green-600' : 'text-red-600';
+
+                        return (
+                            <tr key={group.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                <td className="px-4 py-2 font-medium">{group.itemTR}</td>
+                                <td className="px-4 py-2 truncate max-w-xs" title={group.descricao}>{group.descricao}</td>
+                                <td className="px-4 py-2 text-right font-bold">{newUnitPrice.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
+                                <td className="px-4 py-2 text-right">{marketAverage.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
+                                <td className={`px-4 py-2 text-right font-bold ${diffColor}`}>{difference.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>
+                            </tr>
+                        )
+                    })}
+                    </tbody>
+                </table>
+               </div>
+          </Section>
+      )}
       
       <Section title="Assinatura">
         <div className="grid md:grid-cols-2 gap-6">
@@ -726,8 +964,9 @@ interface ItemFormProps {
     onGroupChange: (id: string, field: keyof OrcamentoItemGroup, value: string | number) => void;
     showSelect: boolean;
     inputClasses: string;
+    isAditivo: boolean;
 }
-const ItemForm: React.FC<ItemFormProps> = ({ group, selected, onSelect, onRemove, onGroupChange, showSelect, inputClasses }) => (
+const ItemForm: React.FC<ItemFormProps> = ({ group, selected, onSelect, onRemove, onGroupChange, showSelect, inputClasses, isAditivo }) => (
     <div className="p-4 border-2 border-cbmpa-red rounded-lg mb-4 bg-white dark:bg-gray-800 shadow-md relative">
         <div className="absolute top-2 right-2 flex items-center gap-4">
             {showSelect && <input type="checkbox" checked={selected} onChange={() => onSelect(group.id)} className="h-5 w-5" title="Selecionar para agrupar"/>}
@@ -739,6 +978,16 @@ const ItemForm: React.FC<ItemFormProps> = ({ group, selected, onSelect, onRemove
                 <Field label="Código SIMAS"><input type="text" value={group.codigoSimas} onChange={e => onGroupChange(group.id, 'codigoSimas', e.target.value)} className={inputClasses}/></Field>
                 <Field label="Unidade" required><input type="text" value={group.unidade} onChange={e => onGroupChange(group.id, 'unidade', e.target.value)} className={inputClasses}/></Field>
                 <Field label="Quantidade Total" required><input type="number" value={group.quantidadeTotal} onChange={e => onGroupChange(group.id, 'quantidadeTotal', parseFloat(e.target.value) || 0)} className={inputClasses}/></Field>
+                {isAditivo && (
+                     <Field label="Valor Unitário Contrato" required>
+                        <input 
+                            type="number" 
+                            value={group.estimativaUnitaria} 
+                            onChange={e => onGroupChange(group.id, 'estimativaUnitaria', parseFloat(e.target.value) || 0)} 
+                            className={inputClasses}
+                        />
+                     </Field>
+                )}
             </div>
             <div>
                 <Field label="Descrição" required>
@@ -747,9 +996,11 @@ const ItemForm: React.FC<ItemFormProps> = ({ group, selected, onSelect, onRemove
                         <AiAssistant fieldName={`Descrição do Item ${group.itemTR}`} onGeneratedText={(text) => onGroupChange(group.id, 'descricao', text)} />
                     </div>
                 </Field>
-                <div className="mt-2 p-2 border rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600">
-                    <p className="font-semibold text-sm dark:text-gray-300">Estimativa Unitária (Calculada): <span className="font-bold text-cbmpa-red">{group.estimativaUnitaria.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span></p>
-                </div>
+                {!isAditivo && (
+                    <div className="mt-2 p-2 border rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600">
+                        <p className="font-semibold text-sm dark:text-gray-300">Estimativa Unitária (Calculada): <span className="font-bold text-cbmpa-red">{group.estimativaUnitaria.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span></p>
+                    </div>
+                )}
             </div>
         </div>
     </div>
